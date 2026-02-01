@@ -225,38 +225,73 @@ class TranslateWorker(QObject):
 class AnalysisWorker(QObject):
     finished = Signal(dict)
     
-    def __init__(self, text: str, batch_num: int):
+    def __init__(self, text: str, batch_num: int, previous_context: str = "", memory: dict = None):
         super().__init__()
         self.text = text
         self.batch_num = batch_num
+        self.previous_context = previous_context
+        self.memory = memory or {"summaries": [], "markets": [], "trend": {"hawkish": 0, "dovish": 0, "neutral": 0}}
         
     def run(self):
         if not OPENROUTER_API_KEY:
             self.finished.emit({"error": "No API Key", "batch_num": self.batch_num})
             return
+        
+        # Build comprehensive memory context
+        context_section = ""
+        summaries = self.memory.get("summaries", [])
+        markets = self.memory.get("markets", [])
+        trend = self.memory.get("trend", {})
+        
+        # Overall trend status
+        total = trend.get("hawkish", 0) + trend.get("dovish", 0) + trend.get("neutral", 0)
+        if total > 0:
+            dominant = max(trend, key=trend.get)
+            trend_pct = int(trend[dominant] / total * 100)
+            context_section += f"\n📊 แนวโน้มรวม: {dominant.upper()} ({trend_pct}%) จาก {total} batches\n"
+        
+        # Previous summaries with sentiment
+        if summaries:
+            summaries_text = "\n".join([f"  B{s['batch']}: [{s['sentiment']}] {s['summary']}" for s in summaries[-5:]])
+            context_section += f"\n📖 สรุปย้อนหลัง:\n{summaries_text}\n"
+        
+        # Previous market predictions for consistency
+        if markets:
+            last_market = markets[-1]
+            context_section += f"\n💹 ทิศทางตลาดล่าสุด (B{last_market['batch']}):\n"
+            context_section += f"  Gold: {last_market.get('gold', '-')[:30]}\n"
+            context_section += f"  Forex: {last_market.get('forex', '-')[:30]}\n"
+            context_section += f"  Stock: {last_market.get('stock', '-')[:30]}\n"
+        
+        if self.previous_context:
+            context_section += f"\n⚡ ข้อความก่อนหน้า:\n{self.previous_context[:400]}\n"
             
-        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ วิเคราะห์บทสนทนาต่อไปนี้อย่างเด็ดขาด:
-
-กฎข้อบังคับ:
-1. ⚠️ ห้ามใช้ "ทรงตัว" เว้นแต่เนื้อหาเป็นเชิงบริหารล้วนๆ (เช่น "ประชุมเสร็จแล้ว") หรือข้อมูลไม่เพียงพออย่างสิ้นเชิง
-2. หากมีคำเหล่านี้ → ต้องกำหนดทิศทางชัดเจน:
-   - HAWKISH: interest rates, inflation, tightening, restrictive policy, tariffs, strong economy
-   - DOVISH: rate cut, easing, stimulus, recession concerns, slowdown, unemployment
-3. วิเคราะห์ตลาดต้องมีเหตุผลสั้นกระชับ (ไม่เกิน 8 คำ) เน้นทิศทาง (ขึ้น/ลง/แข็ง/อ่อน)
-4. หากผู้พูดแสดงความกังวลเรื่องเศรษฐกิจ → DOVISH
-5. หากผู้พูดแสดงความมั่นใจ/เข้มงวด/กังวลเงินเฟ้อ → HAWKISH
-
-บทสนทนา:
+        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ มีหน้าที่วิเคราะห์แบบ REAL-TIME และต้องรักษา CONSISTENCY
+{context_section}
+🎯 บทสนทนาปัจจุบัน (Batch #{self.batch_num}):
 {self.text}
 
-ตอบเป็น JSON เท่านั้น:
+⚠️ กฎ CONSISTENCY (สำคัญมาก):
+1. ดูแนวโน้มรวมและทิศทางตลาดล่าสุด → ถ้าจะเปลี่ยนทิศต้องมีเหตุผลชัดเจนมาก
+2. ห้ามกลับทิศทางตลาด (เช่น Gold ขึ้น→ลง) ถ้าผู้พูดยังพูดเรื่องเดิม
+3. ถ้าเป็นการขยายความหรือตอบคำถามเรื่องเดิม → ทิศทางควรคงเดิมหรือแรงขึ้น
+4. เปลี่ยนทิศทางได้เมื่อ: ผู้พูดเปลี่ยนจุดยืน, มีข้อมูลใหม่ที่ขัดแย้ง, เปลี่ยนหัวข้อ
+
+📏 กฎการวิเคราะห์:
+1. signal_strength: HIGH=ประกาศนโยบายใหม่/ตัวเลขใหม่, MEDIUM=ขยายความ, LOW=ตอบคำถามทั่วไป
+2. sentiment: HAWKISH (กังวลเงินเฟ้อ/เข้มงวด), DOVISH (กังวลเศรษฐกิจ/ผ่อนคลาย), NEUTRAL (ไม่มีสัญญาณชัด)
+3. ถ้า signal_strength=LOW → ทิศทางตลาดควรคงเดิมตาม batch ก่อนหน้า
+
+ตอบเป็น JSON เท่านั้น (ภาษาไทย):
 {{
-    "summary": "สรุป 1-2 ประโยค",
-    "prediction": "คาดการณ์ 1 ประโยค",
+    "summary": "สรุป 1-2 ประโยค (เชื่อมโยงบริบทย้อนหลัง)",
+    "prediction": "คาดการณ์สิ่งที่ผู้พูดจะพูดต่อไป",
     "sentiment": "HAWKISH|DOVISH|NEUTRAL",
-    "gold": "ขึ้น/ลง: เหตุผลสั้น",
-    "forex": "แข็ง/อ่อน: เหตุผลสั้น",
-    "stock": "ขึ้น/ลง: หมวดหุ้นที่ได้รับผลกระทบ"
+    "signal_strength": "HIGH|MEDIUM|LOW",
+    "consistency_note": "อธิบายสั้นๆ ว่าทำไมทิศทางเปลี่ยน/ไม่เปลี่ยนจาก batch ก่อน",
+    "gold": "ขึ้น/ลง/ทรงตัว: เหตุผลสั้น",
+    "forex": "แข็ง/อ่อน/ทรงตัว: เหตุผลสั้น",
+    "stock": "ขึ้น/ลง/ทรงตัว: กลุ่ม + เหตุผล"
 }}"""
 
         max_retries = 2
@@ -267,9 +302,10 @@ class AnalysisWorker(QObject):
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                         json={
-                            "model": "google/gemini-2.0-flash-001",
+                            "model": "google/gemini-2.5-flash",
                             "messages": [{"role": "user", "content": prompt}],
-                            "response_format": {"type": "json_object"}
+                            "response_format": {"type": "json_object"},
+                            "provider": {"order": ["google-vertex/global"]}
                         }
                     )
                     result = resp.json()
@@ -345,6 +381,14 @@ class PakeAnalyzerWindow(QMainWindow):
         self.analysis_thread = None
         self.analysis_worker = None
         
+        # Enhanced Memory System
+        self.memory = {
+            "summaries": [],      # [{batch, summary, sentiment}, ...]
+            "markets": [],        # [{batch, gold, forex, stock}, ...]
+            "trend": {"hawkish": 0, "dovish": 0, "neutral": 0}
+        }
+        self.last_context = ""
+        
         self._build_ui()
         self._start_server()
         
@@ -365,6 +409,10 @@ class PakeAnalyzerWindow(QMainWindow):
         title = QLabel("PAKE LIVE ANALYZER")
         title.setStyleSheet("font-size: 12px; font-weight: bold; color: #6366f1; letter-spacing: 2px;")
         
+        # Overall Trend Indicator
+        self.trend_label = QLabel("📊 TREND: -")
+        self.trend_label.setStyleSheet("font-size: 11px; color: #606070; padding: 4px 10px; background: #1a1a24; border-radius: 4px;")
+        
         self.toggle_btn = QPushButton("🇹🇭 Thai ON")
         self.toggle_btn.setCheckable(True)
         self.toggle_btn.setChecked(True)
@@ -374,6 +422,8 @@ class PakeAnalyzerWindow(QMainWindow):
         self.status.setStyleSheet("font-size: 11px; color: #606070;")
         
         header_layout.addWidget(title)
+        header_layout.addSpacing(20)
+        header_layout.addWidget(self.trend_label)
         header_layout.addStretch()
         header_layout.addWidget(self.toggle_btn)
         header_layout.addSpacing(20)
@@ -504,6 +554,10 @@ class PakeAnalyzerWindow(QMainWindow):
         segments = current_batch.get("segments", [])
         batch_num = batch.get("batch_number", 0)
         
+        # ดึง previous_context จาก batch (ถ้ามี)
+        previous_context = batch.get("previous_context", "")
+        self.last_context = previous_context  # เก็บไว้ใช้ต่อ
+        
         # --- Start Translation Thread ---
         if self.show_thai:
             self.translate_thread = QThread()
@@ -518,9 +572,17 @@ class PakeAnalyzerWindow(QMainWindow):
             
             self.translate_thread.start()
         
-        # --- Start Analysis Thread ---
+        # --- Start Analysis Thread (with full memory) ---
         self.analysis_thread = QThread()
-        self.analysis_worker = AnalysisWorker(text, batch_num)
+        self.analysis_worker = AnalysisWorker(
+            text, batch_num, 
+            previous_context=previous_context,
+            memory={
+                "summaries": self.memory["summaries"].copy(),
+                "markets": self.memory["markets"].copy(),
+                "trend": self.memory["trend"].copy()
+            }
+        )
         self.analysis_worker.moveToThread(self.analysis_thread)
         
         self.analysis_thread.started.connect(self.analysis_worker.run)
@@ -581,9 +643,34 @@ class PakeAnalyzerWindow(QMainWindow):
         summary = result.get("summary", "-")
         prediction = result.get("prediction", "-")
         sentiment = result.get("sentiment", "NEUTRAL").upper()
+        signal_strength = result.get("signal_strength", "MEDIUM")
+        consistency_note = result.get("consistency_note", "")
         gold = result.get("gold", "-")
         forex = result.get("forex", "-")
         stock = result.get("stock", "-")
+        
+        # 🧠 Enhanced Memory Storage
+        self.memory["summaries"].append({"batch": batch_num, "summary": summary, "sentiment": sentiment})
+        self.memory["markets"].append({"batch": batch_num, "gold": gold, "forex": forex, "stock": stock})
+        
+        # Update trend counter
+        if "HAWK" in sentiment:
+            self.memory["trend"]["hawkish"] += 1
+        elif "DOVE" in sentiment:
+            self.memory["trend"]["dovish"] += 1
+        else:
+            self.memory["trend"]["neutral"] += 1
+        
+        # Keep max 10 entries
+        if len(self.memory["summaries"]) > 10:
+            self.memory["summaries"].pop(0)
+        if len(self.memory["markets"]) > 10:
+            self.memory["markets"].pop(0)
+        
+        # Update trend indicator in header
+        self._update_trend_indicator()
+        
+        print(f"🧠 Memory: {len(self.memory['summaries'])} summaries, Trend: {self.memory['trend']}")
         
         now = datetime.datetime.now().strftime("%H:%M:%S")
         
@@ -596,16 +683,21 @@ class PakeAnalyzerWindow(QMainWindow):
             s_color = "#22c55e"
             s_bg = "#1a2a1a"
         
+        # Signal strength styling
+        str_color = {"HIGH": "#ef4444", "MEDIUM": "#f59e0b", "LOW": "#606070"}.get(signal_strength, "#606070")
+        
         html = f'''<table style="width:100%; margin-bottom:14px; background:#1a1a24; border-radius:8px; border:1px solid #2a2a3a;">
 <tr><td style="padding:12px;">
 <div style="margin-bottom:8px; font-size:10px; color:#606070;">
 BATCH #{batch_num} • {now}
+<span style="margin-left:8px; color:{str_color}; font-size:9px;">⚡{signal_strength}</span>
 <span style="float:right; color:{s_color}; font-weight:bold; background:{s_bg}; padding:2px 8px; border-radius:4px;">{sentiment}</span>
 </div>
 
 <div style="margin-bottom:10px;">
 <div style="font-size:10px; color:#6366f1; font-weight:bold; margin-bottom:3px;">📝 SUMMARY</div>
 <div style="font-size:12px; color:#e0e0e0;">{summary}</div>
+{f'<div style="font-size:10px; color:#808090; margin-top:3px;">🔗 {consistency_note}</div>' if consistency_note else ''}
 </div>
 
 <div style="margin-bottom:10px;">
@@ -625,6 +717,35 @@ BATCH #{batch_num} • {now}
         cursor = self.ai_feed.textCursor()
         cursor.movePosition(QTextCursor.Start)
         cursor.insertHtml(html)
+    
+    def _update_trend_indicator(self):
+        """Update the overall trend indicator in header"""
+        trend = self.memory["trend"]
+        total = trend["hawkish"] + trend["dovish"] + trend["neutral"]
+        if total == 0:
+            return
+        
+        # Find dominant trend
+        dominant = max(trend, key=trend.get)
+        count = trend[dominant]
+        pct = int(count / total * 100)
+        
+        # Set color and text
+        if dominant == "hawkish":
+            color = "#ef4444"
+            bg = "#2a1a1a"
+            icon = "🦅"
+        elif dominant == "dovish":
+            color = "#22c55e"
+            bg = "#1a2a1a"
+            icon = "🕊️"
+        else:
+            color = "#f59e0b"
+            bg = "#2a2a1a"
+            icon = "⚖️"
+        
+        self.trend_label.setText(f"{icon} TREND: {dominant.upper()} ({count}/{total} = {pct}%)")
+        self.trend_label.setStyleSheet(f"font-size: 11px; color: {color}; font-weight: bold; padding: 4px 10px; background: {bg}; border-radius: 4px;")
         
     def closeEvent(self, event):
         self.server.stop()
