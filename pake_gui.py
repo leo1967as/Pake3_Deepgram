@@ -132,20 +132,36 @@ class SocketServerThread(QThread):
 # TRANSLATION WORKER (Separate API)
 # ============================================================================
 class TranslateWorker(QObject):
-    finished = Signal(int, str)  # batch_num, translated_text
+    finished = Signal(int, list)  # batch_num, list of translated segments
     
-    def __init__(self, text: str, batch_num: int):
+    def __init__(self, segments: list, batch_num: int):
         super().__init__()
-        self.text = text
+        self.segments = segments  # List of {"speaker": ..., "text": ..., "start": ...}
         self.batch_num = batch_num
         
     def run(self):
-        if not OPENROUTER_API_KEY or not self.text.strip():
-            self.finished.emit(self.batch_num, "")
+        if not OPENROUTER_API_KEY or not self.segments:
+            self.finished.emit(self.batch_num, [])
             return
-            
-        prompt = f"แปลข้อความต่อไปนี้เป็นภาษาไทย ให้อ่านง่ายและเป็นธรรมชาติ:\n\n{self.text}"
         
+        # Format segments for translation with speaker labels
+        lines = []
+        for i, seg in enumerate(self.segments):
+            speaker = seg.get("speaker", "?")
+            text = seg.get("text", "")
+            lines.append(f"{i+1}. [{speaker}]: {text}")
+        
+        formatted_text = "\n".join(lines)
+        
+        prompt = f"""แปลบทสนทนาต่อไปนี้เป็นภาษาไทย เก็บรูปแบบเดิม (หมายเลข และ [Speaker X]) ไว้ทุกบรรทัด:
+
+{formatted_text}
+
+ตอบในรูปแบบเดิม:
+1. [Speaker X]: คำแปล
+2. [Speaker Y]: คำแปล
+..."""
+
         try:
             with httpx.Client(timeout=30) as client:
                 resp = client.post(
@@ -157,11 +173,43 @@ class TranslateWorker(QObject):
                     }
                 )
                 result = resp.json()
-                translated = result["choices"][0]["message"]["content"]
-                self.finished.emit(self.batch_num, translated)
+                translated_text = result["choices"][0]["message"]["content"]
+                
+                # Parse translated lines back into segments
+                translated_segments = []
+                for line in translated_text.strip().split("\n"):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    # Try to parse "1. [Speaker X]: translated text"
+                    if "]:" in line:
+                        parts = line.split("]:", 1)
+                        if len(parts) == 2:
+                            speaker_part = parts[0]
+                            text_part = parts[1].strip()
+                            # Extract speaker name
+                            if "[" in speaker_part:
+                                speaker = speaker_part.split("[", 1)[1]
+                            else:
+                                speaker = "?"
+                            translated_segments.append({
+                                "speaker": speaker,
+                                "text": text_part
+                            })
+                
+                # If parsing failed, fall back to original segments with translated text
+                if len(translated_segments) == 0:
+                    translated_segments.append({
+                        "speaker": "Translation",
+                        "text": translated_text
+                    })
+                
+                print(f"✅ Translation #{self.batch_num} OK ({len(translated_segments)} segments)")
+                self.finished.emit(self.batch_num, translated_segments)
+                
         except Exception as e:
             print(f"Translate Error: {e}")
-            self.finished.emit(self.batch_num, "")
+            self.finished.emit(self.batch_num, [])
 
 # ============================================================================
 # AI ANALYSIS WORKER (Separate API)
@@ -447,13 +495,15 @@ class PakeAnalyzerWindow(QMainWindow):
     def _process_batch(self, batch: dict):
         self.progress.show()
         
-        text = batch.get("current_batch", {}).get("text", "")
+        current_batch = batch.get("current_batch", {})
+        text = current_batch.get("text", "")
+        segments = current_batch.get("segments", [])
         batch_num = batch.get("batch_number", 0)
         
         # --- Start Translation Thread ---
         if self.show_thai:
             self.translate_thread = QThread()
-            self.translate_worker = TranslateWorker(text, batch_num)
+            self.translate_worker = TranslateWorker(segments, batch_num)
             self.translate_worker.moveToThread(self.translate_thread)
             
             self.translate_thread.started.connect(self.translate_worker.run)
@@ -478,24 +528,44 @@ class PakeAnalyzerWindow(QMainWindow):
         
         self.analysis_thread.start()
         
-    def _update_translation(self, batch_num: int, translated: str):
-        if not translated:
+    def _update_translation(self, batch_num: int, segments: list):
+        if not segments:
             return
             
         now = datetime.datetime.now().strftime("%H:%M:%S")
         
-        html = f'''<table style="width:100%; margin-bottom:12px; background:#1a1a24; border-radius:6px;">
-<tr>
-<td style="padding:10px; border-left:3px solid #22c55e;">
-<div style="font-size:10px; color:#606070; margin-bottom:6px;">BATCH #{batch_num} • {now}</div>
-<div style="font-size:13px; color:#e0e0e0; line-height:1.5;">{translated}</div>
-</td>
-</tr>
-</table>'''
+        # Header for the batch
+        header_html = f'''<div style="font-size:10px; color:#606070; margin-top:8px; margin-bottom:4px; border-bottom:1px solid #2a2a3a;">BATCH #{batch_num} • {now}</div>'''
         
         cursor = self.thai_view.textCursor()
         cursor.movePosition(QTextCursor.End)
-        cursor.insertHtml(html)
+        cursor.insertHtml(header_html)
+        
+        colors = ["#6366f1", "#a855f7", "#22c55e", "#ef4444", "#f59e0b"]
+        
+        for seg in segments:
+            speaker = seg.get("speaker", "?")
+            text = seg.get("text", "")
+            
+            # Determine color based on speaker
+            try:
+                idx = int(''.join(filter(str.isdigit, speaker)) or 0)
+            except:
+                idx = 0
+            color = colors[idx % len(colors)]
+            
+            html = f'''<table style="width:100%; margin-bottom:6px; border-collapse:collapse;">
+        <tr>
+        <td style="width:90px; vertical-align:top; padding-right:8px;">
+        <span style="font-size:10px; color:{color}; font-weight:bold;">{speaker}</span>
+        </td>
+        <td style="vertical-align:top; border-left:2px solid {color}; padding-left:10px;">
+        <span style="font-size:13px; color:#e0e0e0;">{text}</span>
+        </td>
+        </tr>
+        </table>'''
+            cursor.insertHtml(html)
+            
         self.thai_view.ensureCursorVisible()
         
     def _update_analysis(self, result: dict):
