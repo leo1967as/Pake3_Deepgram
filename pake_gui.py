@@ -1,7 +1,7 @@
 """
-Pake Live Analyzer GUI v3
+Pake Live Analyzer GUI v4
 =========================
-3-Column Layout - Translation happens with Batch (not per segment)
+3-Column Layout - Separate API calls for Translation and Analysis
 """
 
 import sys
@@ -68,6 +68,7 @@ class SocketServerThread(QThread):
         super().__init__()
         self.port = port
         self.running = True
+        self.client_thread = None
         
     def run(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -81,9 +82,16 @@ class SocketServerThread(QThread):
             
             while self.running:
                 try:
-                    client, _ = server.accept()
+                    client, addr = server.accept()
+                    print(f"🔗 Client connected from {addr}")
                     self.client_connected.emit()
-                    threading.Thread(target=self._handle, args=(client,), daemon=True).start()
+                    # Start handler in background thread
+                    self.client_thread = threading.Thread(
+                        target=self._handle_client, 
+                        args=(client,), 
+                        daemon=True
+                    )
+                    self.client_thread.start()
                 except socket.timeout:
                     continue
         except Exception as e:
@@ -91,34 +99,74 @@ class SocketServerThread(QThread):
         finally:
             server.close()
             
-    def _handle(self, client):
+    def _handle_client(self, client):
         buffer = ""
         try:
             while self.running:
                 data = client.recv(4096).decode('utf-8')
                 if not data:
+                    print("❌ Client disconnected (no data)")
                     break
                 buffer += data
+                
                 while '\n' in buffer:
                     line, buffer = buffer.split('\n', 1)
                     if line.strip():
                         try:
-                            self.message_received.emit(json.loads(line))
-                        except:
-                            pass
-        except:
-            pass
+                            msg = json.loads(line)
+                            print(f"📩 Received: {msg.get('type', '?')}")
+                            self.message_received.emit(msg)
+                        except json.JSONDecodeError as e:
+                            print(f"⚠️ JSON error: {e}")
+        except Exception as e:
+            print(f"⚠️ Handle error: {e}")
         finally:
             client.close()
             self.client_disconnected.emit()
+            print("🔌 Client handler ended")
             
     def stop(self):
         self.running = False
 
 # ============================================================================
-# AI + TRANSLATION WORKER (Combined)
+# TRANSLATION WORKER (Separate API)
 # ============================================================================
-class AIWorker(QObject):
+class TranslateWorker(QObject):
+    finished = Signal(int, str)  # batch_num, translated_text
+    
+    def __init__(self, text: str, batch_num: int):
+        super().__init__()
+        self.text = text
+        self.batch_num = batch_num
+        
+    def run(self):
+        if not OPENROUTER_API_KEY or not self.text.strip():
+            self.finished.emit(self.batch_num, "")
+            return
+            
+        prompt = f"แปลข้อความต่อไปนี้เป็นภาษาไทย ให้อ่านง่ายและเป็นธรรมชาติ:\n\n{self.text}"
+        
+        try:
+            with httpx.Client(timeout=30) as client:
+                resp = client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                    json={
+                        "model": "google/gemini-2.0-flash-001",
+                        "messages": [{"role": "user", "content": prompt}]
+                    }
+                )
+                result = resp.json()
+                translated = result["choices"][0]["message"]["content"]
+                self.finished.emit(self.batch_num, translated)
+        except Exception as e:
+            print(f"Translate Error: {e}")
+            self.finished.emit(self.batch_num, "")
+
+# ============================================================================
+# AI ANALYSIS WORKER (Separate API)
+# ============================================================================
+class AnalysisWorker(QObject):
     finished = Signal(dict)
     
     def __init__(self, text: str, batch_num: int):
@@ -131,19 +179,18 @@ class AIWorker(QObject):
             self.finished.emit({"error": "No API Key", "batch_num": self.batch_num})
             return
             
-        prompt = f"""คุณเป็นนักวิเคราะห์การเงิน วิเคราะห์ transcript นี้:
+        prompt = f"""วิเคราะห์ transcript ทางการเงินนี้ (ตอบภาษาไทย):
 
 เนื้อหา: {self.text}
 
-ตอบเป็น JSON เท่านั้น (ห้ามมี markdown):
+ตอบเป็น JSON เท่านั้น:
 {{
-    "translation": "แปลเนื้อหาข้างบนเป็นภาษาไทยทั้งหมด",
     "summary": "สรุปประเด็นสำคัญ 2-3 ข้อ",
     "prediction": "คาดการณ์หัวข้อถัดไป",
     "sentiment": "HAWKISH หรือ DOVISH หรือ NEUTRAL",
-    "gold": "ผลต่อทองคำ: ขึ้น/ลง/ทรงตัว + เหตุผลสั้นๆ",
-    "forex": "ผลต่อ USD: แข็ง/อ่อน/ทรงตัว + เหตุผลสั้นๆ",
-    "stock": "ผลต่อหุ้น: ขึ้น/ลง/ทรงตัว + หมวดที่ได้รับผลกระทบ"
+    "gold": "ผลต่อทองคำ: ขึ้น/ลง/ทรงตัว + เหตุผล",
+    "forex": "ผลต่อ USD: แข็ง/อ่อน/ทรงตัว + เหตุผล",
+    "stock": "ผลต่อหุ้น: ขึ้น/ลง/ทรงตัว + หมวด"
 }}"""
 
         try:
@@ -158,11 +205,74 @@ class AIWorker(QObject):
                     }
                 )
                 result = resp.json()
-                content = result["choices"][0]["message"]["content"]
+                
+                # Debug: print raw response keys
+                print(f"🔍 API Response keys: {list(result.keys())}")
+                
+                # Check for API error
+                if "error" in result:
+                    print(f"API Error: {result['error']}")
+                    self.finished.emit({"error": str(result['error']), "batch_num": self.batch_num})
+                    return
+                
+                # Safely extract content
+                choices = result.get("choices")
+                if choices is None:
+                    print(f"❌ No 'choices' in response: {result}")
+                    self.finished.emit({"error": "No choices in response", "batch_num": self.batch_num})
+                    return
+                
+                if not isinstance(choices, list) or len(choices) == 0:
+                    print(f"❌ Invalid choices format: {type(choices)}")
+                    self.finished.emit({"error": "Invalid choices format", "batch_num": self.batch_num})
+                    return
+                
+                first_choice = choices[0]
+                if not isinstance(first_choice, dict):
+                    print(f"❌ First choice is not dict: {type(first_choice)}")
+                    self.finished.emit({"error": "Invalid choice format", "batch_num": self.batch_num})
+                    return
+                    
+                message = first_choice.get("message", {})
+                content = message.get("content", "")
+                
+                if not content:
+                    print(f"❌ Empty content in response")
+                    self.finished.emit({"error": "Empty content", "batch_num": self.batch_num})
+                    return
+                
+                # Try to parse JSON, handling markdown code blocks
+                content = content.strip()
+                if content.startswith("```"):
+                    lines = content.split("\n")
+                    content = "\n".join(lines[1:-1])
+                
                 parsed = json.loads(content)
+                
+                # Handle case where AI returns a list instead of dict
+                if isinstance(parsed, list):
+                    print(f"⚠️ AI returned list, taking first item")
+                    if len(parsed) > 0 and isinstance(parsed[0], dict):
+                        parsed = parsed[0]
+                    else:
+                        parsed = {}
+                
+                if not isinstance(parsed, dict):
+                    print(f"❌ Parsed is not dict: {type(parsed)}")
+                    self.finished.emit({"error": "Invalid JSON structure", "batch_num": self.batch_num})
+                    return
+                
                 parsed["batch_num"] = self.batch_num
+                print(f"✅ Analysis #{self.batch_num} OK")
                 self.finished.emit(parsed)
+                
+        except json.JSONDecodeError as e:
+            print(f"JSON Parse Error: {e}")
+            self.finished.emit({"error": f"JSON parse: {e}", "batch_num": self.batch_num})
         except Exception as e:
+            import traceback
+            print(f"Analysis Error: {e}")
+            traceback.print_exc()
             self.finished.emit({"error": str(e), "batch_num": self.batch_num})
 
 # ============================================================================
@@ -176,8 +286,12 @@ class PakeAnalyzerWindow(QMainWindow):
         self.setStyleSheet(DARK_STYLE)
         
         self.show_thai = True
-        self.ai_thread = None
-        self.ai_worker = None
+        
+        # Keep references to prevent garbage collection
+        self.translate_thread = None
+        self.translate_worker = None
+        self.analysis_thread = None
+        self.analysis_worker = None
         
         self._build_ui()
         self._start_server()
@@ -199,7 +313,6 @@ class PakeAnalyzerWindow(QMainWindow):
         title = QLabel("PAKE LIVE ANALYZER")
         title.setStyleSheet("font-size: 12px; font-weight: bold; color: #6366f1; letter-spacing: 2px;")
         
-        # Toggle Thai
         self.toggle_btn = QPushButton("🇹🇭 Thai ON")
         self.toggle_btn.setCheckable(True)
         self.toggle_btn.setChecked(True)
@@ -238,12 +351,12 @@ class PakeAnalyzerWindow(QMainWindow):
         self.transcript.setReadOnly(True)
         col1_layout.addWidget(self.transcript)
         
-        # Column 2: Thai Translation (Batched)
+        # Column 2: Thai Translation
         self.col2 = QWidget()
         col2_layout = QVBoxLayout(self.col2)
         col2_layout.setContentsMargins(6, 10, 6, 12)
         
-        lbl2 = QLabel("🇹🇭 TRANSLATION (TH) - Batched")
+        lbl2 = QLabel("🇹🇭 TRANSLATION (TH)")
         lbl2.setStyleSheet("font-size: 10px; font-weight: bold; margin-bottom: 6px;")
         col2_layout.addWidget(lbl2)
         
@@ -279,7 +392,6 @@ class PakeAnalyzerWindow(QMainWindow):
         else:
             self.toggle_btn.setText("🇹🇭 Thai OFF")
             self.col2.hide()
-            self.splitter.setSizes([600, 0, 800])
         
     def _start_server(self):
         self.server = SocketServerThread(8765)
@@ -306,7 +418,6 @@ class PakeAnalyzerWindow(QMainWindow):
         text = seg.get("text", "")
         start = seg.get("start", 0)
         
-        # Color per speaker
         colors = ["#6366f1", "#a855f7", "#22c55e", "#ef4444", "#f59e0b"]
         try:
             idx = int(''.join(filter(str.isdigit, speaker)) or 0)
@@ -316,14 +427,17 @@ class PakeAnalyzerWindow(QMainWindow):
         
         time_str = f"{int(start // 60)}:{int(start % 60):02d}"
         
-        html = f'''
-        <div style="margin-bottom: 10px;">
-            <div style="font-size: 10px; color: #606070; margin-bottom: 2px;">
-                <b style="color: {color};">{speaker}</b> • {time_str}
-            </div>
-            <div style="font-size: 13px; color: #e0e0e0; line-height: 1.4; padding-left: 8px; border-left: 2px solid {color};">{text}</div>
-        </div>
-        '''
+        html = f'''<table style="width:100%; margin-bottom:8px; border-collapse:collapse;">
+<tr>
+<td style="width:100px; vertical-align:top; padding-right:8px;">
+<span style="font-size:10px; color:{color}; font-weight:bold;">{speaker}</span><br/>
+<span style="font-size:9px; color:#606070;">{time_str}</span>
+</td>
+<td style="vertical-align:top; border-left:2px solid {color}; padding-left:10px;">
+<span style="font-size:13px; color:#e0e0e0;">{text}</span>
+</td>
+</tr>
+</table>'''
         
         cursor = self.transcript.textCursor()
         cursor.movePosition(QTextCursor.End)
@@ -336,28 +450,60 @@ class PakeAnalyzerWindow(QMainWindow):
         text = batch.get("current_batch", {}).get("text", "")
         batch_num = batch.get("batch_number", 0)
         
-        # Create new thread safely
-        self.ai_thread = QThread()
-        self.ai_worker = AIWorker(text, batch_num)
-        self.ai_worker.moveToThread(self.ai_thread)
+        # --- Start Translation Thread ---
+        if self.show_thai:
+            self.translate_thread = QThread()
+            self.translate_worker = TranslateWorker(text, batch_num)
+            self.translate_worker.moveToThread(self.translate_thread)
+            
+            self.translate_thread.started.connect(self.translate_worker.run)
+            self.translate_worker.finished.connect(self._update_translation)
+            self.translate_worker.finished.connect(self.translate_thread.quit)
+            self.translate_worker.finished.connect(self.translate_worker.deleteLater)
+            self.translate_thread.finished.connect(self.translate_thread.deleteLater)
+            
+            self.translate_thread.start()
         
-        self.ai_thread.started.connect(self.ai_worker.run)
-        self.ai_worker.finished.connect(self._update_results)
-        self.ai_worker.finished.connect(self.ai_thread.quit)
-        self.ai_worker.finished.connect(self.ai_worker.deleteLater)
-        self.ai_thread.finished.connect(self.ai_thread.deleteLater)
+        # --- Start Analysis Thread ---
+        self.analysis_thread = QThread()
+        self.analysis_worker = AnalysisWorker(text, batch_num)
+        self.analysis_worker.moveToThread(self.analysis_thread)
         
-        self.ai_thread.start()
+        self.analysis_thread.started.connect(self.analysis_worker.run)
+        self.analysis_worker.finished.connect(self._update_analysis)
+        self.analysis_worker.finished.connect(self.analysis_thread.quit)
+        self.analysis_worker.finished.connect(self.analysis_worker.deleteLater)
+        self.analysis_thread.finished.connect(self.analysis_thread.deleteLater)
+        self.analysis_thread.finished.connect(lambda: self.progress.hide())
         
-    def _update_results(self, result: dict):
-        self.progress.hide()
+        self.analysis_thread.start()
         
+    def _update_translation(self, batch_num: int, translated: str):
+        if not translated:
+            return
+            
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        
+        html = f'''<table style="width:100%; margin-bottom:12px; background:#1a1a24; border-radius:6px;">
+<tr>
+<td style="padding:10px; border-left:3px solid #22c55e;">
+<div style="font-size:10px; color:#606070; margin-bottom:6px;">BATCH #{batch_num} • {now}</div>
+<div style="font-size:13px; color:#e0e0e0; line-height:1.5;">{translated}</div>
+</td>
+</tr>
+</table>'''
+        
+        cursor = self.thai_view.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertHtml(html)
+        self.thai_view.ensureCursorVisible()
+        
+    def _update_analysis(self, result: dict):
         if "error" in result:
-            print(f"AI Error: {result['error']}")
+            print(f"Analysis Error: {result['error']}")
             return
             
         batch_num = result.get("batch_num", 0)
-        translation = result.get("translation", "")
         summary = result.get("summary", "-")
         prediction = result.get("prediction", "-")
         sentiment = result.get("sentiment", "NEUTRAL").upper()
@@ -367,20 +513,6 @@ class PakeAnalyzerWindow(QMainWindow):
         
         now = datetime.datetime.now().strftime("%H:%M:%S")
         
-        # --- Add Translation ---
-        if translation and self.show_thai:
-            thai_html = f'''
-            <div style="margin-bottom: 12px; padding: 10px; background: #1a1a24; border-radius: 6px; border-left: 3px solid #22c55e;">
-                <div style="font-size: 10px; color: #606070; margin-bottom: 4px;">BATCH #{batch_num} • {now}</div>
-                <div style="font-size: 13px; color: #e0e0e0; line-height: 1.5;">{translation}</div>
-            </div>
-            '''
-            cursor = self.thai_view.textCursor()
-            cursor.movePosition(QTextCursor.End)
-            cursor.insertHtml(thai_html)
-            self.thai_view.ensureCursorVisible()
-        
-        # --- Add AI Analysis ---
         s_color = "#606070"
         s_bg = "#1a1a24"
         if "HAWK" in sentiment:
@@ -390,35 +522,35 @@ class PakeAnalyzerWindow(QMainWindow):
             s_color = "#22c55e"
             s_bg = "#1a2a1a"
         
-        ai_html = f'''
-        <div style="margin-bottom: 14px; padding: 12px; background: #1a1a24; border-radius: 8px; border: 1px solid #2a2a3a;">
-            <div style="margin-bottom: 8px; font-size: 10px; color: #606070;">
-                BATCH #{batch_num} • {now}
-                <span style="float: right; color: {s_color}; font-weight: bold; background: {s_bg}; padding: 2px 8px; border-radius: 4px;">{sentiment}</span>
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <div style="font-size: 10px; color: #6366f1; font-weight: bold; margin-bottom: 3px;">📝 SUMMARY</div>
-                <div style="font-size: 12px; color: #e0e0e0;">{summary}</div>
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <div style="font-size: 10px; color: #a855f7; font-weight: bold; margin-bottom: 3px;">🔮 PREDICTION</div>
-                <div style="font-size: 11px; color: #a0a0b0;">{prediction}</div>
-            </div>
-            
-            <div style="background: #0f0f14; padding: 10px; border-radius: 6px;">
-                <div style="font-size: 10px; color: #22c55e; font-weight: bold; margin-bottom: 6px;">📊 MARKET IMPACT</div>
-                <div style="font-size: 11px; color: #f59e0b; margin-bottom: 4px;">🥇 Gold: <span style="color: #e0e0e0;">{gold}</span></div>
-                <div style="font-size: 11px; color: #3b82f6; margin-bottom: 4px;">💱 Forex: <span style="color: #e0e0e0;">{forex}</span></div>
-                <div style="font-size: 11px; color: #ec4899;">📈 Stock: <span style="color: #e0e0e0;">{stock}</span></div>
-            </div>
-        </div>
-        '''
+        html = f'''<table style="width:100%; margin-bottom:14px; background:#1a1a24; border-radius:8px; border:1px solid #2a2a3a;">
+<tr><td style="padding:12px;">
+<div style="margin-bottom:8px; font-size:10px; color:#606070;">
+BATCH #{batch_num} • {now}
+<span style="float:right; color:{s_color}; font-weight:bold; background:{s_bg}; padding:2px 8px; border-radius:4px;">{sentiment}</span>
+</div>
+
+<div style="margin-bottom:10px;">
+<div style="font-size:10px; color:#6366f1; font-weight:bold; margin-bottom:3px;">📝 SUMMARY</div>
+<div style="font-size:12px; color:#e0e0e0;">{summary}</div>
+</div>
+
+<div style="margin-bottom:10px;">
+<div style="font-size:10px; color:#a855f7; font-weight:bold; margin-bottom:3px;">🔮 PREDICTION</div>
+<div style="font-size:11px; color:#a0a0b0;">{prediction}</div>
+</div>
+
+<div style="background:#0f0f14; padding:10px; border-radius:6px;">
+<div style="font-size:10px; color:#22c55e; font-weight:bold; margin-bottom:6px;">📊 MARKET IMPACT</div>
+<div style="font-size:11px; color:#f59e0b; margin-bottom:4px;">🥇 Gold: <span style="color:#e0e0e0;">{gold}</span></div>
+<div style="font-size:11px; color:#3b82f6; margin-bottom:4px;">💱 Forex: <span style="color:#e0e0e0;">{forex}</span></div>
+<div style="font-size:11px; color:#ec4899;">📈 Stock: <span style="color:#e0e0e0;">{stock}</span></div>
+</div>
+</td></tr>
+</table>'''
         
         cursor = self.ai_feed.textCursor()
         cursor.movePosition(QTextCursor.Start)
-        cursor.insertHtml(ai_html)
+        cursor.insertHtml(html)
         
     def closeEvent(self, event):
         self.server.stop()
