@@ -143,14 +143,6 @@ def send_batch():
     if not batch_state["buffer"]:
         return
     
-    if not N8N_WEBHOOK_URL:
-        # Just update context even if no webhook
-        batch_text = " ".join([s["text"] for s in batch_state["buffer"]])
-        batch_state["sent_context"] = (batch_state["sent_context"] + " " + batch_text)[-CONTEXT_WINDOW*3:]
-        batch_state["buffer"] = []
-        batch_state["last_send_time"] = time.time()
-        return
-    
     # Create unique clip_id once per session
     if "clip_id" not in session_data["meta"]:
         session_data["meta"]["clip_id"] = f"dg_{int(time.time())}"
@@ -206,16 +198,19 @@ def send_batch():
     batch_state["buffer"] = []
     batch_state["last_send_time"] = time.time()
     
-    # Send non-blocking
-    def send_async():
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                client.post(N8N_WEBHOOK_URL, json=payload)
-            print(f"\n📤 Batch #{payload['batch_number']} sent ({payload['current_batch']['segment_count']} segments, {payload['time_range']['duration']:.1f}s)")
-        except Exception as e:
-            print(f"\n⚠️ Webhook failed: {str(e)[:50]}")
-    
-    threading.Thread(target=send_async, daemon=True).start()
+    # Send non-blocking via Webhook (Only if configured)
+    if N8N_WEBHOOK_URL:
+        def send_async():
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    client.post(N8N_WEBHOOK_URL, json=payload)
+                print(f"\n📤 Batch #{payload['batch_number']} sent ({payload['current_batch']['segment_count']} segments, {payload['time_range']['duration']:.1f}s)")
+            except Exception as e:
+                print(f"\n⚠️ Webhook failed: {str(e)[:50]}")
+        
+        threading.Thread(target=send_async, daemon=True).start()
+    else:
+        print(f"\n✅ Batch #{payload['batch_number']} broadcast to GUI ({payload['current_batch']['segment_count']} segments)")
 
 def send_final_summary():
     """Send complete transcription summary"""

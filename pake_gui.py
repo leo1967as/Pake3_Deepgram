@@ -10,6 +10,7 @@ import os
 import datetime
 import socket
 import threading
+import time
 import httpx
 from dotenv import load_dotenv
 from PySide6.QtWidgets import (
@@ -162,54 +163,61 @@ class TranslateWorker(QObject):
 2. [Speaker Y]: คำแปล
 ..."""
 
-        try:
-            with httpx.Client(timeout=30) as client:
-                resp = client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-                    json={
-                        "model": "google/gemini-2.0-flash-001",
-                        "messages": [{"role": "user", "content": prompt}]
-                    }
-                )
-                result = resp.json()
-                translated_text = result["choices"][0]["message"]["content"]
-                
-                # Parse translated lines back into segments
-                translated_segments = []
-                for line in translated_text.strip().split("\n"):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    # Try to parse "1. [Speaker X]: translated text"
-                    if "]:" in line:
-                        parts = line.split("]:", 1)
-                        if len(parts) == 2:
-                            speaker_part = parts[0]
-                            text_part = parts[1].strip()
-                            # Extract speaker name
-                            if "[" in speaker_part:
-                                speaker = speaker_part.split("[", 1)[1]
-                            else:
-                                speaker = "?"
-                            translated_segments.append({
-                                "speaker": speaker,
-                                "text": text_part
-                            })
-                
-                # If parsing failed, fall back to original segments with translated text
-                if len(translated_segments) == 0:
-                    translated_segments.append({
-                        "speaker": "Translation",
-                        "text": translated_text
-                    })
-                
-                print(f"✅ Translation #{self.batch_num} OK ({len(translated_segments)} segments)")
-                self.finished.emit(self.batch_num, translated_segments)
-                
-        except Exception as e:
-            print(f"Translate Error: {e}")
-            self.finished.emit(self.batch_num, [])
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                with httpx.Client(timeout=30) as client:
+                    resp = client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                        json={
+                            "model": "google/gemini-2.0-flash-001",
+                            "messages": [{"role": "user", "content": prompt}]
+                        }
+                    )
+                    result = resp.json()
+                    translated_text = result["choices"][0]["message"]["content"]
+                    
+                    # Parse translated lines back into segments
+                    translated_segments = []
+                    for line in translated_text.strip().split("\n"):
+                        line = line.strip()
+                        if not line:
+                            continue
+                        # Try to parse "1. [Speaker X]: translated text"
+                        if "]:" in line:
+                            parts = line.split("]:", 1)
+                            if len(parts) == 2:
+                                speaker_part = parts[0]
+                                text_part = parts[1].strip()
+                                # Extract speaker name
+                                if "[" in speaker_part:
+                                    speaker = speaker_part.split("[", 1)[1]
+                                else:
+                                    speaker = "?"
+                                translated_segments.append({
+                                    "speaker": speaker,
+                                    "text": text_part
+                                })
+                    
+                    # If parsing failed, fall back to original segments with translated text
+                    if len(translated_segments) == 0:
+                        translated_segments.append({
+                            "speaker": "Translation",
+                            "text": translated_text
+                        })
+                    
+                    print(f"✅ Translation #{self.batch_num} OK ({len(translated_segments)} segments)")
+                    self.finished.emit(self.batch_num, translated_segments)
+                    return # Success
+                    
+            except Exception as e:
+                if attempt == max_retries:
+                    print(f"Translate Error (Final): {e}")
+                    self.finished.emit(self.batch_num, [])
+                else:
+                    print(f"⚠️ Translate Error (Attempt {attempt+1}): {e} - Retrying...")
+                    time.sleep(2 ** attempt)
 
 # ============================================================================
 # AI ANALYSIS WORKER (Separate API)
@@ -227,101 +235,97 @@ class AnalysisWorker(QObject):
             self.finished.emit({"error": "No API Key", "batch_num": self.batch_num})
             return
             
-        prompt = f"""วิเคราะห์ transcript ทางการเงินนี้ (ตอบภาษาไทย):
+        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ วิเคราะห์บทสนทนาต่อไปนี้อย่างเด็ดขาด:
 
-เนื้อหา: {self.text}
+กฎข้อบังคับ:
+1. ⚠️ ห้ามใช้ "ทรงตัว" เว้นแต่เนื้อหาเป็นเชิงบริหารล้วนๆ (เช่น "ประชุมเสร็จแล้ว") หรือข้อมูลไม่เพียงพออย่างสิ้นเชิง
+2. หากมีคำเหล่านี้ → ต้องกำหนดทิศทางชัดเจน:
+   - HAWKISH: interest rates, inflation, tightening, restrictive policy, tariffs, strong economy
+   - DOVISH: rate cut, easing, stimulus, recession concerns, slowdown, unemployment
+3. วิเคราะห์ตลาดต้องมีเหตุผลสั้นกระชับ (ไม่เกิน 8 คำ) เน้นทิศทาง (ขึ้น/ลง/แข็ง/อ่อน)
+4. หากผู้พูดแสดงความกังวลเรื่องเศรษฐกิจ → DOVISH
+5. หากผู้พูดแสดงความมั่นใจ/เข้มงวด/กังวลเงินเฟ้อ → HAWKISH
+
+บทสนทนา:
+{self.text}
 
 ตอบเป็น JSON เท่านั้น:
 {{
-    "summary": "สรุปประเด็นสำคัญ 2-3 ข้อ",
-    "prediction": "คาดการณ์หัวข้อถัดไป",
-    "sentiment": "HAWKISH หรือ DOVISH หรือ NEUTRAL",
-    "gold": "ผลต่อทองคำ: ขึ้น/ลง/ทรงตัว + เหตุผล",
-    "forex": "ผลต่อ USD: แข็ง/อ่อน/ทรงตัว + เหตุผล",
-    "stock": "ผลต่อหุ้น: ขึ้น/ลง/ทรงตัว + หมวด"
+    "summary": "สรุป 1-2 ประโยค",
+    "prediction": "คาดการณ์ 1 ประโยค",
+    "sentiment": "HAWKISH|DOVISH|NEUTRAL",
+    "gold": "ขึ้น/ลง: เหตุผลสั้น",
+    "forex": "แข็ง/อ่อน: เหตุผลสั้น",
+    "stock": "ขึ้น/ลง: หมวดหุ้นที่ได้รับผลกระทบ"
 }}"""
 
-        try:
-            with httpx.Client(timeout=45) as client:
-                resp = client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-                    json={
-                        "model": "google/gemini-2.0-flash-001",
-                        "messages": [{"role": "user", "content": prompt}],
-                        "response_format": {"type": "json_object"}
-                    }
-                )
-                result = resp.json()
-                
-                # Debug: print raw response keys
-                print(f"🔍 API Response keys: {list(result.keys())}")
-                
-                # Check for API error
-                if "error" in result:
-                    print(f"API Error: {result['error']}")
-                    self.finished.emit({"error": str(result['error']), "batch_num": self.batch_num})
-                    return
-                
-                # Safely extract content
-                choices = result.get("choices")
-                if choices is None:
-                    print(f"❌ No 'choices' in response: {result}")
-                    self.finished.emit({"error": "No choices in response", "batch_num": self.batch_num})
-                    return
-                
-                if not isinstance(choices, list) or len(choices) == 0:
-                    print(f"❌ Invalid choices format: {type(choices)}")
-                    self.finished.emit({"error": "Invalid choices format", "batch_num": self.batch_num})
-                    return
-                
-                first_choice = choices[0]
-                if not isinstance(first_choice, dict):
-                    print(f"❌ First choice is not dict: {type(first_choice)}")
-                    self.finished.emit({"error": "Invalid choice format", "batch_num": self.batch_num})
-                    return
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                with httpx.Client(timeout=45) as client:
+                    resp = client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                        json={
+                            "model": "google/gemini-2.0-flash-001",
+                            "messages": [{"role": "user", "content": prompt}],
+                            "response_format": {"type": "json_object"}
+                        }
+                    )
+                    result = resp.json()
                     
-                message = first_choice.get("message", {})
-                content = message.get("content", "")
-                
-                if not content:
-                    print(f"❌ Empty content in response")
-                    self.finished.emit({"error": "Empty content", "batch_num": self.batch_num})
-                    return
-                
-                # Try to parse JSON, handling markdown code blocks
-                content = content.strip()
-                if content.startswith("```"):
-                    lines = content.split("\n")
-                    content = "\n".join(lines[1:-1])
-                
-                parsed = json.loads(content)
-                
-                # Handle case where AI returns a list instead of dict
-                if isinstance(parsed, list):
-                    print(f"⚠️ AI returned list, taking first item")
-                    if len(parsed) > 0 and isinstance(parsed[0], dict):
-                        parsed = parsed[0]
-                    else:
-                        parsed = {}
-                
-                if not isinstance(parsed, dict):
-                    print(f"❌ Parsed is not dict: {type(parsed)}")
-                    self.finished.emit({"error": "Invalid JSON structure", "batch_num": self.batch_num})
-                    return
-                
-                parsed["batch_num"] = self.batch_num
-                print(f"✅ Analysis #{self.batch_num} OK")
-                self.finished.emit(parsed)
-                
-        except json.JSONDecodeError as e:
-            print(f"JSON Parse Error: {e}")
-            self.finished.emit({"error": f"JSON parse: {e}", "batch_num": self.batch_num})
-        except Exception as e:
-            import traceback
-            print(f"Analysis Error: {e}")
-            traceback.print_exc()
-            self.finished.emit({"error": str(e), "batch_num": self.batch_num})
+                    # Debug: print raw response keys
+                    # print(f"🔍 API Response keys: {list(result.keys())}")
+                    
+                    # Check for API error
+                    if "error" in result:
+                        raise Exception(f"API Error: {result['error']}")
+                    
+                    # Safely extract content
+                    choices = result.get("choices")
+                    if choices is None:
+                        raise Exception(f"No 'choices' in response: {result}")
+                    
+                    first_choice = choices[0]
+                    message = first_choice.get("message", {})
+                    content = message.get("content", "")
+                    
+                    if not content:
+                        raise Exception("Empty content")
+                    
+                    # Try to parse JSON, handling markdown code blocks
+                    content = content.strip()
+                    if content.startswith("```"):
+                        lines = content.split("\n")
+                        content = "\n".join(lines[1:-1])
+                    
+                    parsed = json.loads(content)
+                    
+                    # Handle case where AI returns a list instead of dict
+                    if isinstance(parsed, list):
+                        print(f"⚠️ AI returned list, taking first item")
+                        if len(parsed) > 0 and isinstance(parsed[0], dict):
+                            parsed = parsed[0]
+                        else:
+                            parsed = {}
+                    
+                    if not isinstance(parsed, dict):
+                        raise Exception(f"Parsed content is not dict: {type(parsed)}")
+                    
+                    parsed["batch_num"] = self.batch_num
+                    print(f"✅ Analysis #{self.batch_num} OK")
+                    self.finished.emit(parsed)
+                    return # Success
+                    
+            except Exception as e:
+                if attempt == max_retries:
+                    import traceback
+                    print(f"Analysis Error (Final): {e}")
+                    traceback.print_exc()
+                    self.finished.emit({"error": str(e), "batch_num": self.batch_num})
+                else:
+                    print(f"⚠️ Analysis Error (Attempt {attempt+1}): {e} - Retrying...")
+                    time.sleep(2 ** attempt)
 
 # ============================================================================
 # MAIN WINDOW
