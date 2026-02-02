@@ -23,6 +23,39 @@ from PySide6.QtGui import QFont, QTextCursor
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_KEY", "")
 
+DECISION_RULES = """
+### 🚨 กฎการตัดสินใจ (ต้องปฏิบัติตาม 100% - ห้ามใช้ "ทรงตัว" เมื่อมีคำเหล่านี้)
+
+#### 🦅 HAWKISH (ต้องตอบ "HAWKISH" หากมีคำเหล่านี้ในคำพูดประธานเฟด):
+- เงินเฟ้อเพิ่มขึ้น: "inflation rising", "inflation accelerating", "price pressures increasing"
+- ความกังวลเงินเฟ้อ: "inflation concerns", "inflation risks", "unsustainable inflation"
+- นโยบายเข้มงวด: "tighten policy", "restrictive stance", "higher for longer"
+- ขึ้นดอกเบี้ย: "rate hike", "raise rates", "not cutting soon"
+- หนี้ไม่ยั่งยืน: "unsustainable debt", "unsustainable deficit", "fiscal trajectory concerns"
+- ตลาดแรงงานร้อนแรง: "tight labor market", "strong job growth", "wage pressures"
+
+#### 🕊️ DOVISH (ต้องตอบ "DOVISH" หากมีคำเหล่านี้ในคำพูดประธานเฟด):
+- เงินเฟ้อลดลง: "inflation falling", "disinflation", "inflation coming down", "progress on inflation"
+- แนวโน้มเงินเฟ้อดีขึ้น: "inflation 3.5% → 3.2%", "core PCE below 3%", "inflation near 2%"
+- ตลาดแรงงานอ่อนตัว: "labor market softening", "cooling labor market", "unemployment rising"
+- ผ่อนคลายนโยบาย: "ease policy", "accommodative stance", "rate cuts possible"
+- ภาษีส่งผ่านแล้ว: "tariff pass-through complete", "tariff effects fading", "one-time price increase"
+- ผลิตภาพเพิ่ม: "productivity growth", "AI boosts productivity", "wage growth from productivity"
+
+#### ⚖️ NEUTRAL (ใช้ได้เฉพาะกรณี):
+- นักข่าวถามคำถาม (ยังไม่มีคำตอบจากประธานเฟด)
+- เรื่องทั่วไปที่ไม่เกี่ยวกับนโยบาย: "Fed independence", "appointment process", "congressional testimony"
+
+### 📊 กฎการวิเคราะห์ตลาด (ต้องเชื่อมโยงกับแนวโน้ม):
+- HAWKISH → Gold: ลง | Forex: แข็ง | Stock: ลง (โดยเฉพาะ growth stocks)
+- DOVISH → Gold: ขึ้น | Forex: อ่อน | Stock: ขึ้น (โดยเฉพาะ rate-sensitive sectors)
+- NEUTRAL → ทรงตัว (แต่ต้องอธิบายว่า "รอคำตอบจากประธานเฟด")
+
+### ⚠️ ห้ามใช้คำว่า "รอดูข้อมูลเพิ่มเติม" — ต้องใช้เหตุผลเชิงปริมาณ:
+❌ ห้าม: "รอดูข้อมูลเศรษฐกิจเพิ่มเติม"
+✅ ต้อง: "เงินเฟ้อลดจาก 3.5% → 3.2% → dovish pressure on rates"
+"""
+
 # ============================================================================
 # STYLES
 # ============================================================================
@@ -271,55 +304,27 @@ class AnalysisWorker(QObject):
         if self.previous_context:
             context_section += f"\n⚡ ข้อความก่อนหน้า:\n{self.previous_context[:400]}\n"
             
-        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ วิเคราะห์แบบ REAL-TIME
+        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ วิเคราะห์แบบเรียลไทม์โดยใช้กฎต่อไปนี้:
+
+{DECISION_RULES}
+
+🧠 บริบทย้อนหลัง (สำคัญ):
 {context_section}
+
 🎯 บทสนทนาปัจจุบัน (Batch #{self.batch_num}):
 {self.text}
 
-👥 ขั้นตอนที่ 1 - ระบุบทบาทผู้พูด:
-- ผู้มีอำนาจ (Fed Chair, รัฐมนตรี) = ตอบยาว อธิบายนโยบาย
-- ผู้สัมภาษณ์ (นักข่าว) = ถามคำถามสั้นๆ
-
-🚨 กฎ SENTIMENT (สำคัญที่สุด - ต้องตัดสินใจ!):
-หากเห็นคำ/วลีเหล่านี้ใน Fed Chair พูด → ต้องเลือก HAWKISH หรือ DOVISH ทันที:
-
-🦅 HAWKISH (กังวลเงินเฟ้อ/เข้มงวด):
-- "inflation concerns", "price pressures", "unsustainable debt/deficit"
-- "strong economy", "robust growth", "tight labor market"
-- "may need to raise rates", "restrictive policy", "not cutting soon"
-
-🕊️ DOVISH (กังวลเศรษฐกิจ/ผ่อนคลาย):
-- "inflation coming down", "risks diminished", "progress on inflation"
-- "labor market softening/cooling", "unemployment rising"
-- "rate cuts possible", "easing conditions", "slowing growth"
-- "pass-through complete", "tariff effects fading"
-
-⚖️ NEUTRAL เฉพาะเมื่อ:
-- นักข่าวถามคำถาม (ยังไม่มีคำตอบ)
-- Fed พูดเรื่องทั่วไป ไม่เกี่ยวกับนโยบาย (Fed independence, processes)
-- ไม่มีคำสำคัญข้างต้นเลย
-
-📊 กฎ Market Impact:
-- HAWKISH → Gold ลง, USD แข็ง, Stock ลง (โดยเฉพาะ growth stocks)
-- DOVISH → Gold ขึ้น, USD อ่อน, Stock ขึ้น
-- NEUTRAL → ทรงตัว
-
-📏 Signal Strength:
-- HIGH = Fed ประกาศตัวเลขใหม่/เปลี่ยนจุดยืน
-- MEDIUM = Fed ขยายความ/ยืนยันจุดยืน  
-- LOW = นักข่าวถาม/เรื่องทั่วไป
-
-ตอบเป็น JSON (ภาษาไทย):
+ตอบเป็น JSON เท่านั้น (ภาษาไทย):
 {{
-    "speaker_identified": "Speaker X=บทบาท",
-    "summary": "สรุป 1-2 ประโยค (ระบุบทบาท)",
-    "prediction": "คาดการณ์สิ่งที่จะพูดต่อไป",
-    "sentiment": "HAWKISH|DOVISH|NEUTRAL",
+    "speaker_identified": "ประธานเฟด/นักข่าว",
+    "summary": "สรุป 1 ประโยค + ระบุบทบาทผู้พูด",
+    "prediction": "คาดการณ์ 1 ประโยค",
+    "sentiment": "HAWKISH|DOVISH|NEUTRAL (ต้องเลือกตามกฎข้างต้น)",
     "signal_strength": "HIGH|MEDIUM|LOW",
-    "consistency_note": "อธิบายสั้นๆ ว่าทำไมเลือก sentiment นี้ (อ้างอิงคำสำคัญที่เห็น)",
-    "gold": "ขึ้น/ลง/ทรงตัว: เหตุผล",
-    "forex": "แข็ง/อ่อน/ทรงตัว: เหตุผล",
-    "stock": "ขึ้น/ลง/ทรงตัว: กลุ่ม + เหตุผล"
+    "consistency_note": "อธิบายว่าทำไมเลือก sentiment นี้ (อ้างอิงคำสำคัญ)",
+    "gold": "ขึ้น/ลง/ทรงตัว: เหตุผลเชิงปริมาณ",
+    "forex": "แข็ง/อ่อน/ทรงตัว: เหตุผลเชิงปริมาณ",
+    "stock": "ขึ้น/ลง/ทรงตัว: หมวด + เหตุผลเชิงปริมาณ"
 }}"""
 
         max_retries = 2
@@ -413,6 +418,13 @@ class PakeAnalyzerWindow(QMainWindow):
             "summaries": [],      # [{batch, summary, sentiment}, ...]
             "markets": [],        # [{batch, gold, forex, stock}, ...]
             "trend": {"hawkish": 0, "dovish": 0, "neutral": 0}
+        }
+        
+        # New: Tracking numeric trends
+        self.trend_tracker = {
+            "inflation": [],      # เก็บค่า % เงินเฟ้อ เช่น [3.5, 3.3, 3.2]
+            "unemployment": [],   # เก็บค่า % การว่างงาน
+            "last_direction": None  # "up" หรือ "down"
         }
         self.last_context = ""
         
@@ -521,6 +533,37 @@ class PakeAnalyzerWindow(QMainWindow):
         else:
             self.toggle_btn.setText("🇹🇭 Thai OFF")
             self.col2.hide()
+            
+    def _track_numeric_trends(self, text: str):
+        """ติดตามแนวโน้มตัวเลขจากข้อความ"""
+        import re
+        
+        # ดึง % เงินเฟ้อ (เช่น "3.5%", "3.2%")
+        # ค้นหาตัวเลขที่ตามด้วย % และมีคำว่า inflation, pce, cpi อยู่ใกล้ๆ (แบบง่าย)
+        inflation_matches = re.findall(r"(\d+\.?\d*)\s*%.*?(?:inflation|pce|cpi)", text.lower())
+        
+        # ถ้าไม่เจอแบบแรก ให้ลองหาคำ inflation... แล้วตามด้วยตัวเลข %
+        if not inflation_matches:
+             inflation_matches = re.findall(r"(?:inflation|pce|cpi).*?(\d+\.?\d*)\s*%", text.lower())
+
+        for match in inflation_matches[:3]:  # เก็บแค่ 3 ค่าแรก
+            try:
+                value = float(match)
+                self.trend_tracker["inflation"].append(value)
+                # จำกัดขนาดให้เหลือแค่ 5 ค่าล่าสุด
+                if len(self.trend_tracker["inflation"]) > 5:
+                    self.trend_tracker["inflation"].pop(0)
+            except:
+                pass
+        
+        # วิเคราะห์ทิศทางแนวโน้ม
+        if len(self.trend_tracker["inflation"]) >= 2:
+            last = self.trend_tracker["inflation"][-1]
+            prev = self.trend_tracker["inflation"][-2]
+            if last < prev:
+                self.trend_tracker["last_direction"] = "down"  # แนวโน้มลดลง = DOVISH
+            elif last > prev:
+                self.trend_tracker["last_direction"] = "up"    # แนวโน้มเพิ่มขึ้น = HAWKISH
         
     def _start_server(self):
         self.server = SocketServerThread(8765)
@@ -684,12 +727,25 @@ class PakeAnalyzerWindow(QMainWindow):
             print(f"Analysis Error: {result['error']}")
             return
             
-        batch_num = result.get("batch_num", 0)
         summary = result.get("summary", "-")
+        # 🔥 เพิ่ม: ติดตามแนวโน้มตัวเลข
+        self._track_numeric_trends(summary)
+        
+        batch_num = result.get("batch_num", 0)
         prediction = result.get("prediction", "-")
         sentiment = result.get("sentiment", "NEUTRAL").upper()
         signal_strength = result.get("signal_strength", "MEDIUM")
         consistency_note = result.get("consistency_note", "")
+        
+        # เพิ่มข้อมูลแนวโน้มใน consistency_note
+        trend_note = ""
+        if self.trend_tracker["last_direction"] == "down":
+            trend_note = " (แนวโน้มเงินเฟ้อลดลง → dovish)"
+        elif self.trend_tracker["last_direction"] == "up":
+            trend_note = " (แนวโน้มเงินเฟ้อเพิ่มขึ้น → hawkish)"
+        
+        if trend_note:
+            consistency_note += trend_note
         speaker_identified = result.get("speaker_identified", "")
         gold = result.get("gold", "-")
         forex = result.get("forex", "-")
