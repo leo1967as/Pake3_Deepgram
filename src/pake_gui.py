@@ -15,10 +15,13 @@ import httpx
 from dotenv import load_dotenv
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLabel, QSplitter, QProgressBar, QFrame, QPushButton
+    QTextEdit, QLabel, QSplitter, QProgressBar, QFrame, QPushButton,
+    QDockWidget, QScrollArea, QCheckBox, QButtonGroup
 )
-from PySide6.QtCore import Qt, QThread, Signal, QObject
-from PySide6.QtGui import QFont, QTextCursor
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer
+from PySide6.QtGui import QFont, QTextCursor, QIcon, QAction
+
+from economic_detector import ForexFactoryScraper
 
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_KEY", "")
@@ -398,7 +401,390 @@ class AnalysisWorker(QObject):
                     time.sleep(2 ** attempt)
 
 # ============================================================================
-# MAIN WINDOW
+# ECONOMIC NEWS WIDGET
+# ============================================================================
+class FetchNewsWorker(QObject):
+    finished = Signal(list)
+    
+    def __init__(self, timeframe="today"):
+        super().__init__()
+        self.timeframe = timeframe
+        
+    def run(self):
+        try:
+            scraper = ForexFactoryScraper()
+            data = scraper.fetch_news(timeframe=self.timeframe)
+            self.finished.emit(data)
+        except Exception as e:
+            print(f"Fetch Error: {e}")
+            self.finished.emit([])
+
+class EconomicNewsWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+        self.data = []
+        self.timeframe = "today"
+        self.load_cache()
+        
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # --- HEADER ---
+        header = QFrame()
+        header.setFixedHeight(50)
+        header.setStyleSheet("background: #14141c; border-bottom: 1px solid #2a2a3a;")
+        h_layout = QHBoxLayout(header)
+        h_layout.setContentsMargins(16, 0, 16, 0)
+        
+        title = QLabel("Economic Calendar")
+        title.setStyleSheet("font-weight: bold; font-size: 13px; color: #e0e0e0;")
+        
+        self.refresh_btn = QPushButton("🔄")
+        self.refresh_btn.setFixedSize(30, 30)
+        self.refresh_btn.setCursor(Qt.PointingHandCursor)
+        self.refresh_btn.setToolTip("Refresh Data")
+        self.refresh_btn.clicked.connect(self.refresh_data)
+        
+        h_layout.addWidget(title)
+        h_layout.addStretch()
+        h_layout.addWidget(self.refresh_btn)
+        layout.addWidget(header)
+        
+        # --- CONTROLS ---
+        controls = QFrame()
+        controls.setStyleSheet("background: #14141c; padding: 10px;")
+        c_layout = QVBoxLayout(controls)
+        c_layout.setSpacing(10)
+        c_layout.setContentsMargins(10, 5, 10, 5)
+        
+        # Toggle: Today / Week
+        toggle_layout = QHBoxLayout()
+        self.btn_today = QPushButton("Today")
+        self.btn_week = QPushButton("Week")
+        
+        for btn in [self.btn_today, self.btn_week]:
+            btn.setCheckable(True)
+            btn.setFixedHeight(28)
+            btn.setCursor(Qt.PointingHandCursor)
+            
+        self.btn_today.setChecked(True)
+        self.btn_group = QButtonGroup(self)
+        self.btn_group.addButton(self.btn_today)
+        self.btn_group.addButton(self.btn_week)
+        
+        self.btn_group.buttonClicked.connect(self.on_timeframe_changed)
+        
+        self.apply_toggle_style()
+        
+        toggle_layout.addWidget(self.btn_today)
+        toggle_layout.addWidget(self.btn_week)
+        c_layout.addLayout(toggle_layout)
+        
+        # Auto Snipe Checkbox
+        self.chk_auto = self.create_checkbox("⚡ Auto Snipe (T-1m, +10s, +1m)", "#22c55e", False)
+        self.chk_auto.setToolTip("Automatically refresh before and after High Impact news")
+        self.chk_auto.stateChanged.connect(self.schedule_next_refresh)
+        c_layout.addWidget(self.chk_auto)
+        
+        # Filters
+        filter_layout = QHBoxLayout()
+        self.chk_high = self.create_checkbox("High", "#ef4444", True)
+        self.chk_med = self.create_checkbox("Med", "#f59e0b", True)
+        self.chk_low = self.create_checkbox("Low", "#eab308", True) # Yellowish
+        self.chk_none = self.create_checkbox("None", "#606070", False) # Default unchecked
+        
+        filter_layout.addWidget(self.chk_high)
+        filter_layout.addWidget(self.chk_med)
+        filter_layout.addWidget(self.chk_low)
+        filter_layout.addWidget(self.chk_none)
+        c_layout.addLayout(filter_layout)
+        
+        layout.addWidget(controls)
+        
+        # --- NEWS LIST ---
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: #0f0f14; }")
+        
+        self.list_container = QWidget()
+        self.list_container.setStyleSheet("background: #0f0f14;")
+        self.list_layout = QVBoxLayout(self.list_container)
+        self.list_layout.setContentsMargins(10, 10, 10, 10)
+        self.list_layout.setSpacing(8)
+        self.list_layout.addStretch() # Push items to top
+        
+        self.scroll.setWidget(self.list_container)
+        layout.addWidget(self.scroll)
+        
+        # Status Bar
+        self.lbl_updated = QLabel("Last update: -")
+        self.lbl_updated.setAlignment(Qt.AlignCenter)
+        self.lbl_updated.setStyleSheet("color: #606070; font-size: 10px; padding: 5px;")
+        layout.addWidget(self.lbl_updated)
+        
+        # Auto Refresh Timer
+        self.snipe_timer = QTimer()
+        self.snipe_timer.setSingleShot(True)
+        self.snipe_timer.timeout.connect(self.on_snipe_trigger)
+
+    def create_checkbox(self, text, color, checked=True):
+        chk = QCheckBox(text)
+        chk.setChecked(checked)
+        chk.setStyleSheet(f"""
+            QCheckBox {{ color: {color}; font-size: 11px; font-weight: bold; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border-radius: 3px; border: 1px solid #3a3a4a; background: #2a2a3a; }}
+            QCheckBox::indicator:checked {{ background: {color}; border-color: {color}; }}
+        """)
+        # Don't connect stateChanged here for general filters, logic is handled in render_list
+        if text not in ["⚡ Auto Snipe (T-1m, +10s, +1m)"]:
+             chk.stateChanged.connect(self.render_list)
+        return chk
+        
+    def parse_news_time(self, time_str):
+        """Parse '2:30pm' string to a datetime object for TODAY."""
+        if not time_str or "Day" in time_str or "Tentative" in time_str:
+            return None
+        
+        try:
+            # Parse time string like "2:30pm"
+            # Note: This assumes the news time is relative to the current system date
+            now = datetime.datetime.now()
+            dt = datetime.datetime.strptime(time_str, "%I:%M%p")
+            news_dt = now.replace(hour=dt.hour, minute=dt.minute, second=0, microsecond=0)
+            return news_dt
+        except:
+            return None
+
+    def schedule_next_refresh(self):
+        """Find the next refresh target (T-1m, T+10s, T+1m)"""
+        self.snipe_timer.stop()
+        
+        if not self.chk_auto.isChecked() or not self.data:
+            self.lbl_updated.setText(f"Last update: {datetime.datetime.now().strftime('%H:%M:%S')}")
+            return
+
+        now = datetime.datetime.now()
+        targets = []
+        
+        # Collect all triggers
+        for item in self.data:
+            # Only snipe High/Medium impact events
+            impact = item.get("impact", "")
+            if impact not in ["High", "Medium"]:
+                continue
+                
+            news_dt = self.parse_news_time(item.get("time", ""))
+            if not news_dt:
+                continue
+            
+            # 1. T - 1 minute (Preparation)
+            targets.append((news_dt - datetime.timedelta(minutes=1), "Prep"))
+            # 2. T + 10 seconds (Immediate Result)
+            targets.append((news_dt + datetime.timedelta(seconds=10), "Catch"))
+            # 3. T + 1 minute (Confirmation)
+            targets.append((news_dt + datetime.timedelta(minutes=1), "Confirm"))
+
+        # Find nearest future target
+        targets.sort(key=lambda x: x[0])
+        next_target = None
+        
+        for t, label in targets:
+            if t > now:
+                next_target = (t, label)
+                break
+        
+        if next_target:
+            t_obj, label = next_target
+            delta_ms = int((t_obj - now).total_seconds() * 1000)
+            self.snipe_timer.start(delta_ms)
+            
+            time_str = t_obj.strftime("%H:%M:%S")
+            self.lbl_updated.setText(f"⏳ Next: {time_str} ({label})")
+            print(f"🎯 Snipe scheduled at {time_str} ({label})")
+        else:
+            self.lbl_updated.setText(f"Updated: {now.strftime('%H:%M')}. No more/future events.")
+
+    def on_snipe_trigger(self):
+        print("⚡ Snipe Trigger executing...")
+        self.refresh_data() # This will reload data, and on_data_fetched will call schedule_next_refresh again
+
+    def apply_toggle_style(self):
+        active_style = "background: #6366f1; color: white; border: none; font-weight: bold;"
+        inactive_style = "background: #2a2a3a; color: #808090; border: 1px solid #3a3a4a;"
+        
+        if self.btn_today.isChecked():
+            self.btn_today.setStyleSheet(active_style + "border-top-left-radius: 6px; border-bottom-left-radius: 6px;")
+            self.btn_week.setStyleSheet(inactive_style + "border-top-right-radius: 6px; border-bottom-right-radius: 6px; border-left: none;")
+        else:
+            self.btn_today.setStyleSheet(inactive_style + "border-top-left-radius: 6px; border-bottom-left-radius: 6px; border-right: none;")
+            self.btn_week.setStyleSheet(active_style + "border-top-right-radius: 6px; border-bottom-right-radius: 6px;")
+
+    def on_timeframe_changed(self):
+        self.apply_toggle_style()
+        if self.btn_today.isChecked():
+            self.timeframe = "today"
+        else:
+            self.timeframe = "week"
+        
+        # Check if we assume 'week' implies needing a refresh if we only have 'today' data?
+        # For simplicity, we just trigger refresh or reload from cache if valid.
+        self.refresh_data()
+
+    def get_cache_path(self):
+        return os.path.join("data", "news_cache.json")
+
+    def load_cache(self):
+        try:
+            path = self.get_cache_path()
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    cache = json.load(f)
+                    self.data = cache.get("data", [])
+                    last_update = cache.get("last_update", "-")
+                    self.lbl_updated.setText(f"Last update: {last_update}")
+                    self.timeframe = cache.get("timeframe", "today")
+                    
+                    if self.timeframe == "week":
+                        self.btn_week.setChecked(True)
+                    else:
+                        self.btn_today.setChecked(True)
+                    self.apply_toggle_style()
+                    
+                    self.render_list()
+        except Exception as e:
+            print(f"Cache load error: {e}")
+
+    def save_cache(self):
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open(self.get_cache_path(), "w", encoding="utf-8") as f:
+                json.dump({
+                    "last_update": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "timeframe": self.timeframe,
+                    "data": self.data
+                }, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Cache save error: {e}")
+            
+    def refresh_data(self):
+        self.refresh_btn.setEnabled(False)
+        self.lbl_updated.setText("⏳ Updating...")
+        
+        # Use worker thread to avoid freezing UI
+        self.worker_thread = QThread()
+        self.worker = FetchNewsWorker(self.timeframe)
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.on_data_fetched)
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
+        
+    def on_data_fetched(self, data):
+        self.data = data
+        self.save_cache()
+        self.render_list()
+        self.schedule_next_refresh()
+        self.refresh_btn.setEnabled(True)
+        
+        # Only set text if NOT auto-sniping (scheduler overwrites it otherwise)
+        if not self.chk_auto.isChecked():
+             self.lbl_updated.setText(f"Last update: {datetime.datetime.now().strftime('%H:%M:%S')}")
+
+    def render_list(self):
+        # Clear existing items
+        while self.list_layout.count() > 1: # Keep the stretch item at end
+            item = self.list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        if not self.data:
+            lbl = QLabel("No Data")
+            lbl.setStyleSheet("color: #606070; font-style: italic; margin-top: 20px;")
+            lbl.setAlignment(Qt.AlignCenter)
+            self.list_layout.insertWidget(0, lbl)
+            return
+
+        for item in self.data:
+            impact = item.get("impact", "Unknown")
+            
+            # Filtering
+            if impact == "High" and not self.chk_high.isChecked(): continue
+            if impact == "Medium" and not self.chk_med.isChecked(): continue
+            if impact == "Low" and not self.chk_low.isChecked(): continue
+            if (impact == "Non-Econ" or impact == "Unknown") and not self.chk_none.isChecked(): continue
+            
+            card = self.create_news_card(item)
+            self.list_layout.insertWidget(self.list_layout.count()-1, card)
+            
+    def create_news_card(self, item):
+        frame = QFrame()
+        frame.setStyleSheet("""
+            QFrame { background: #1a1a24; border-radius: 6px; border: 1px solid #2a2a3a; }
+            QFrame:hover { border-color: #3a3a4a; background: #20202a; }
+        """)
+        layout = QHBoxLayout(frame)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(10)
+        
+        # Time & Currency Column
+        left_col = QVBoxLayout()
+        left_col.setSpacing(2)
+        
+        time_lbl = QLabel(item.get("time", ""))
+        time_lbl.setStyleSheet("color: #808090; font-size: 11px;")
+        
+        curr_lbl = QLabel(item.get("currency", ""))
+        curr_lbl.setStyleSheet("color: #e0e0e0; font-weight: bold; font-size: 12px;")
+        
+        # Flag logic (simple unicode or text)
+        # Replacing currency with simple colored label could work too
+        
+        left_col.addWidget(time_lbl)
+        left_col.addWidget(curr_lbl)
+        layout.addLayout(left_col)
+        
+        # Impact Bar
+        impact = item.get("impact", "Low")
+        color = "#eab308" # Low
+        if impact == "High": color = "#ef4444"
+        elif impact == "Medium": color = "#f59e0b"
+        elif impact == "Non-Econ": color = "#606070"
+        
+        bar = QFrame()
+        bar.setFixedWidth(4)
+        bar.setStyleSheet(f"background: {color}; border-radius: 2px;")
+        layout.addWidget(bar)
+        
+        # Title & Data
+        right_col = QVBoxLayout()
+        right_col.setSpacing(4)
+        
+        title = QLabel(item.get("title", ""))
+        title.setWordWrap(True)
+        title.setStyleSheet("color: #e0e0e0; font-size: 12px;")
+        
+        # Data string: "Act: 0.4% | Fcst: 0.3%"
+        actual = item.get("actual", "")
+        forecast = item.get("forecast", "")
+        if actual or forecast:
+            data_str = f"Act: <span style='color:#ffffff'>{actual}</span> | Fcst: {forecast}"
+            data_lbl = QLabel(data_str)
+            data_lbl.setStyleSheet("color: #808090; font-size: 10px;")
+            data_lbl.setTextFormat(Qt.RichText)
+            right_col.addWidget(title)
+            right_col.addWidget(data_lbl)
+        else:
+            right_col.addWidget(title)
+            
+        layout.addLayout(right_col, stretch=1)
+        
+        return frame
+
 # ============================================================================
 class PakeAnalyzerWindow(QMainWindow):
     def __init__(self):
@@ -460,14 +846,39 @@ class PakeAnalyzerWindow(QMainWindow):
         self.status = QLabel("● WAITING")
         self.status.setStyleSheet("font-size: 11px; color: #606070;")
         
+        # Toggle News Button
+        self.btn_news = QPushButton("📅 News")
+        self.btn_news.setCheckable(True)
+        self.btn_news.setStyleSheet("""
+            QPushButton { background: #1a1a24; border: 1px solid #2a2a3a; color: #a0a0b0; border-radius: 4px; padding: 4px 10px; font-size: 11px; }
+            QPushButton:hover { background: #2a2a3a; color: #e0e0e0; }
+            QPushButton:checked { background: #6366f1; color: white; border-color: #6366f1; }
+        """)
+        self.btn_news.clicked.connect(self.toggle_news_panel)
+        
         header_layout.addWidget(title)
         header_layout.addSpacing(20)
         header_layout.addWidget(self.trend_label)
         header_layout.addStretch()
+        header_layout.addWidget(self.btn_news) # Add News Button
+        header_layout.addSpacing(10)
         header_layout.addWidget(self.toggle_btn)
         header_layout.addSpacing(20)
         header_layout.addWidget(self.status)
         layout.addWidget(header)
+
+        # --- NEWS DOCK ---
+        self.news_dock = QDockWidget("Economic Calendar", self)
+        self.news_dock.setAllowedAreas(Qt.RightDockWidgetArea)
+        self.news_dock.setFeatures(QDockWidget.DockWidgetClosable) # No float/move for simplicity
+        
+        self.news_widget = EconomicNewsWidget()
+        self.news_dock.setWidget(self.news_widget)
+        self.news_dock.hide() # Hidden by default
+        self.addDockWidget(Qt.RightDockWidgetArea, self.news_dock)
+        
+        # Connect dock close event to button uncheck
+        self.news_dock.visibilityChanged.connect(self.btn_news.setChecked)
         
         # --- PROGRESS ---
         self.progress = QProgressBar()
@@ -572,6 +983,12 @@ class PakeAnalyzerWindow(QMainWindow):
         self.server.client_disconnected.connect(lambda: self._set_status("● OFFLINE", "#ef4444"))
         self.server.start()
         
+    def toggle_news_panel(self):
+        if self.btn_news.isChecked():
+            self.news_dock.show()
+        else:
+            self.news_dock.hide()
+
     def _set_status(self, text: str, color: str):
         self.status.setText(text)
         self.status.setStyleSheet(f"font-size: 11px; color: {color}; font-weight: bold;")
