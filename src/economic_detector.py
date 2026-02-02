@@ -1,5 +1,7 @@
 from curl_cffi import requests
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+import pytz
 
 class ForexFactoryScraper:
     def __init__(self):
@@ -110,24 +112,6 @@ class ForexFactoryScraper:
             print(f"⚠️ Error scraping: {e}")
             return []
 
-# --- ทดสอบการใช้งาน ---
-if __name__ == "__main__":
-    scraper = ForexFactoryScraper()
-    
-    print("\n" + "="*50)
-    print("⏳ [TODAY] กำลังดึงข่าวทั้งหมดวันนี้...")
-    news_today = scraper.fetch_news(timeframe="today")
-    
-    if news_today:
-        print(f"✅ พบข่าววันนี้ {len(news_today)} ข่าว:")
-        # กรองเฉพาะ High Impact เพื่อแสดงผลตัวอย่าง
-        high_impact = [n for n in news_today if n['impact'] == 'High']
-        print(f"   🔴 ข่าวแดง: {len(high_impact)} ข่าว")
-        for news in high_impact:
-            print(f"   � {news['time']} | {news['currency']} | {news['title']}")
-            
-        print(f"   ⚪ ข่าวอื่นๆ: {len(news_today) - len(high_impact)} ข่าว")
-    else:
-        print("❌ ไม่พบข่าววันนี้")
+# ... (ForexFactoryScraper code remains above) ...
 
-    print("="*50 + "\n")
+# MT5NewsFetcher Removed per user request.

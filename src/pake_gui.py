@@ -406,14 +406,23 @@ class AnalysisWorker(QObject):
 class FetchNewsWorker(QObject):
     finished = Signal(list)
     
-    def __init__(self, timeframe="today"):
+    def __init__(self, source="forexfactory", timeframe="today"):
         super().__init__()
+        self.source = source
         self.timeframe = timeframe
         
     def run(self):
         try:
-            scraper = ForexFactoryScraper()
-            data = scraper.fetch_news(timeframe=self.timeframe)
+            data = []
+            if self.source == "mt5":
+                print("🏭 Fetching from MetaTrader 5...")
+                fetcher = MT5NewsFetcher()
+                data = fetcher.fetch_news(timeframe=self.timeframe)
+            else:
+                print("🌎 Fetching from ForexFactory...")
+                scraper = ForexFactoryScraper()
+                data = scraper.fetch_news(timeframe=self.timeframe)
+                
             self.finished.emit(data)
         except Exception as e:
             print(f"Fetch Error: {e}")
@@ -422,9 +431,10 @@ class FetchNewsWorker(QObject):
 class EconomicNewsWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setup_ui()
         self.data = []
         self.timeframe = "today"
+        self.source = "forexfactory" # Default
+        self.setup_ui()
         self.load_cache()
         
     def setup_ui(self):
@@ -460,6 +470,42 @@ class EconomicNewsWidget(QWidget):
         c_layout.setSpacing(10)
         c_layout.setContentsMargins(10, 5, 10, 5)
         
+        # Source "Slide" (Segmented Control)
+        source_layout = QHBoxLayout()
+        source_lbl = QLabel("Source:")
+        source_lbl.setStyleSheet("color: #808090; font-size: 11px;")
+        
+        self.btn_ff = QPushButton("ForexFactory")
+        self.btn_mt5 = QPushButton("MetaTrader 5")
+        
+        self.btn_ff = QPushButton("ForexFactory")
+        self.btn_mt5 = QPushButton("MetaTrader 5")
+        
+        for btn in [self.btn_ff, self.btn_mt5]:
+            btn.setCheckable(True)
+            btn.setFixedHeight(35) # Increased size
+            btn.setCursor(Qt.PointingHandCursor)
+            
+        self.btn_ff.setChecked(True)
+        self.source_group = QButtonGroup(self)
+        self.source_group.addButton(self.btn_ff)
+        self.source_group.addButton(self.btn_mt5)
+        self.source_group.buttonClicked.connect(self.on_source_changed)
+        
+        self.apply_source_style()
+        
+        source_layout.addWidget(source_lbl)
+        source_layout.addSpacing(15) # Add spacing after label
+        # Invisible Spacer Label as requested "ข้อความมองไม่เห็น"
+        # spacer_lbl = QLabel("   ") 
+        # source_layout.addWidget(spacer_lbl)
+        
+        source_layout.addWidget(self.btn_ff)
+        source_layout.addWidget(self.btn_mt5)
+        source_layout.addStretch() # Push everything to left
+        
+        c_layout.addLayout(source_layout)
+        
         # Toggle: Today / Week
         toggle_layout = QHBoxLayout()
         self.btn_today = QPushButton("Today")
@@ -467,7 +513,7 @@ class EconomicNewsWidget(QWidget):
         
         for btn in [self.btn_today, self.btn_week]:
             btn.setCheckable(True)
-            btn.setFixedHeight(28)
+            btn.setFixedHeight(35) # Increased size
             btn.setCursor(Qt.PointingHandCursor)
             
         self.btn_today.setChecked(True)
@@ -611,6 +657,25 @@ class EconomicNewsWidget(QWidget):
         print("⚡ Snipe Trigger executing...")
         self.refresh_data() # This will reload data, and on_data_fetched will call schedule_next_refresh again
 
+    def apply_source_style(self):
+        active = "background: #2a2a3a; color: #e0e0e0; border: 1px solid #6366f1;"
+        inactive = "background: #1a1a24; color: #606070; border: 1px solid #2a2a3a;"
+        
+        if self.btn_ff.isChecked():
+            self.btn_ff.setStyleSheet(active + "border-top-left-radius: 4px; border-bottom-left-radius: 4px;")
+            self.btn_mt5.setStyleSheet(inactive + "border-top-right-radius: 4px; border-bottom-right-radius: 4px;")
+        else:
+            self.btn_ff.setStyleSheet(inactive + "border-top-left-radius: 4px; border-bottom-left-radius: 4px;")
+            self.btn_mt5.setStyleSheet(active + "border-top-right-radius: 4px; border-bottom-right-radius: 4px;")
+
+    def on_source_changed(self):
+        self.apply_source_style()
+        if self.btn_ff.isChecked():
+            self.source = "forexfactory"
+        else:
+            self.source = "mt5"
+        self.refresh_data()
+
     def apply_toggle_style(self):
         active_style = "background: #6366f1; color: white; border: none; font-weight: bold;"
         inactive_style = "background: #2a2a3a; color: #808090; border: 1px solid #3a3a4a;"
@@ -628,9 +693,7 @@ class EconomicNewsWidget(QWidget):
             self.timeframe = "today"
         else:
             self.timeframe = "week"
-        
-        # Check if we assume 'week' implies needing a refresh if we only have 'today' data?
-        # For simplicity, we just trigger refresh or reload from cache if valid.
+        # Refresh on change
         self.refresh_data()
 
     def get_cache_path(self):
@@ -646,6 +709,7 @@ class EconomicNewsWidget(QWidget):
                     last_update = cache.get("last_update", "-")
                     self.lbl_updated.setText(f"Last update: {last_update}")
                     self.timeframe = cache.get("timeframe", "today")
+                    self.source = cache.get("source", "forexfactory")
                     
                     if self.timeframe == "week":
                         self.btn_week.setChecked(True)
@@ -653,7 +717,14 @@ class EconomicNewsWidget(QWidget):
                         self.btn_today.setChecked(True)
                     self.apply_toggle_style()
                     
+                    if self.source == "mt5":
+                        self.btn_mt5.setChecked(True)
+                    else:
+                        self.btn_ff.setChecked(True)
+                    self.apply_source_style()
+                    
                     self.render_list()
+                    self.schedule_next_refresh() # Restore schedule
         except Exception as e:
             print(f"Cache load error: {e}")
 
@@ -664,6 +735,7 @@ class EconomicNewsWidget(QWidget):
                 json.dump({
                     "last_update": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "timeframe": self.timeframe,
+                    "source": self.source,
                     "data": self.data
                 }, f, ensure_ascii=False, indent=2)
         except Exception as e:
@@ -675,7 +747,7 @@ class EconomicNewsWidget(QWidget):
         
         # Use worker thread to avoid freezing UI
         self.worker_thread = QThread()
-        self.worker = FetchNewsWorker(self.timeframe)
+        self.worker = FetchNewsWorker(source=self.source, timeframe=self.timeframe)
         self.worker.moveToThread(self.worker_thread)
         self.worker_thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.on_data_fetched)
