@@ -141,7 +141,9 @@ class TranslateWorker(QObject):
         self.batch_num = batch_num
         
     def run(self):
+        print(f"🚀 TranslateWorker.run() started for Batch #{self.batch_num}")
         if not OPENROUTER_API_KEY or not self.segments:
+            print(f"❌ No API Key or no segments!")
             self.finished.emit(self.batch_num, [])
             return
         
@@ -166,7 +168,8 @@ class TranslateWorker(QObject):
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
-                with httpx.Client(timeout=30) as client:
+                print(f"📡 Calling Translation API (Attempt {attempt+1})...")
+                with httpx.Client(timeout=60) as client:
                     resp = client.post(
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
@@ -233,7 +236,9 @@ class AnalysisWorker(QObject):
         self.memory = memory or {"summaries": [], "markets": [], "trend": {"hawkish": 0, "dovish": 0, "neutral": 0}}
         
     def run(self):
+        print(f"🚀 AnalysisWorker.run() started for Batch #{self.batch_num}")
         if not OPENROUTER_API_KEY:
+            print("❌ No OPENROUTER_API_KEY!")
             self.finished.emit({"error": "No API Key", "batch_num": self.batch_num})
             return
         
@@ -266,44 +271,61 @@ class AnalysisWorker(QObject):
         if self.previous_context:
             context_section += f"\n⚡ ข้อความก่อนหน้า:\n{self.previous_context[:400]}\n"
             
-        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ มีหน้าที่วิเคราะห์แบบ REAL-TIME และต้องรักษา CONSISTENCY
+        prompt = f"""คุณคือนักวิเคราะห์การเงินมืออาชีพ วิเคราะห์แบบ REAL-TIME
 {context_section}
 🎯 บทสนทนาปัจจุบัน (Batch #{self.batch_num}):
 {self.text}
 
 👥 ขั้นตอนที่ 1 - ระบุบทบาทผู้พูด:
-- ดูจากเนื้อหาว่าใครเป็น "ผู้มีอำนาจ" (Fed Chair, รัฐมนตรี, CEO) = ตอบยาว อธิบายนโยบาย
-- ใครเป็น "ผู้สัมภาษณ์" (นักข่าว, Moderator) = ถามคำถามสั้นๆ
-- ใน summary ให้เรียกตามบทบาท เช่น "ประธาน Fed กล่าวว่า..." หรือ "นักข่าวถามว่า..."
+- ผู้มีอำนาจ (Fed Chair, รัฐมนตรี) = ตอบยาว อธิบายนโยบาย
+- ผู้สัมภาษณ์ (นักข่าว) = ถามคำถามสั้นๆ
 
-⚠️ กฎ CONSISTENCY (สำคัญมาก):
-1. ดูแนวโน้มรวมและทิศทางตลาดล่าสุด → ถ้าจะเปลี่ยนทิศต้องมีเหตุผลชัดเจนมาก
-2. ห้ามกลับทิศทางตลาด (เช่น Gold ขึ้น→ลง) ถ้า Fed Chair ยังพูดเรื่องเดิม
-3. ถ้าเป็นการขยายความหรือตอบคำถามเรื่องเดิม → ทิศทางควรคงเดิมหรือแรงขึ้น
-4. เปลี่ยนทิศทางได้เมื่อ: Fed Chair เปลี่ยนจุดยืน, มีข้อมูลใหม่ที่ขัดแย้ง, เปลี่ยนหัวข้อ
-5. ⚠️ คำถามจากนักข่าว = signal_strength LOW เสมอ (ยังไม่ใช่ข้อมูลจริง)
+🚨 กฎ SENTIMENT (สำคัญที่สุด - ต้องตัดสินใจ!):
+หากเห็นคำ/วลีเหล่านี้ใน Fed Chair พูด → ต้องเลือก HAWKISH หรือ DOVISH ทันที:
 
-📏 กฎการวิเคราะห์:
-1. signal_strength: HIGH=Fed ประกาศนโยบายใหม่/ตัวเลขใหม่, MEDIUM=Fed ขยายความ, LOW=นักข่าวถาม/Fed ตอบทั่วไป
-2. sentiment: HAWKISH (Fed กังวลเงินเฟ้อ/เข้มงวด), DOVISH (Fed กังวลเศรษฐกิจ/ผ่อนคลาย), NEUTRAL (Fed ไม่แสดงจุดยืนชัด)
-3. ถ้า signal_strength=LOW → ทิศทางตลาดต้องคงเดิมตาม batch ก่อนหน้า
+🦅 HAWKISH (กังวลเงินเฟ้อ/เข้มงวด):
+- "inflation concerns", "price pressures", "unsustainable debt/deficit"
+- "strong economy", "robust growth", "tight labor market"
+- "may need to raise rates", "restrictive policy", "not cutting soon"
 
-ตอบเป็น JSON เท่านั้น (ภาษาไทย):
+🕊️ DOVISH (กังวลเศรษฐกิจ/ผ่อนคลาย):
+- "inflation coming down", "risks diminished", "progress on inflation"
+- "labor market softening/cooling", "unemployment rising"
+- "rate cuts possible", "easing conditions", "slowing growth"
+- "pass-through complete", "tariff effects fading"
+
+⚖️ NEUTRAL เฉพาะเมื่อ:
+- นักข่าวถามคำถาม (ยังไม่มีคำตอบ)
+- Fed พูดเรื่องทั่วไป ไม่เกี่ยวกับนโยบาย (Fed independence, processes)
+- ไม่มีคำสำคัญข้างต้นเลย
+
+📊 กฎ Market Impact:
+- HAWKISH → Gold ลง, USD แข็ง, Stock ลง (โดยเฉพาะ growth stocks)
+- DOVISH → Gold ขึ้น, USD อ่อน, Stock ขึ้น
+- NEUTRAL → ทรงตัว
+
+📏 Signal Strength:
+- HIGH = Fed ประกาศตัวเลขใหม่/เปลี่ยนจุดยืน
+- MEDIUM = Fed ขยายความ/ยืนยันจุดยืน  
+- LOW = นักข่าวถาม/เรื่องทั่วไป
+
+ตอบเป็น JSON (ภาษาไทย):
 {{
-    "speaker_identified": "ระบุว่า Speaker ไหนคือใคร เช่น 'Speaker 0=Fed Chair Powell, Speaker 2=นักข่าว'",
-    "summary": "สรุป 1-2 ประโยค (ระบุบทบาท เช่น 'ประธาน Fed กล่าวว่า...' หรือ 'นักข่าวถามเกี่ยวกับ...')",
-    "prediction": "คาดการณ์สิ่งที่ Fed Chair จะพูดต่อไป",
+    "speaker_identified": "Speaker X=บทบาท",
+    "summary": "สรุป 1-2 ประโยค (ระบุบทบาท)",
+    "prediction": "คาดการณ์สิ่งที่จะพูดต่อไป",
     "sentiment": "HAWKISH|DOVISH|NEUTRAL",
     "signal_strength": "HIGH|MEDIUM|LOW",
-    "consistency_note": "อธิบายสั้นๆ ว่าทำไมทิศทางเปลี่ยน/ไม่เปลี่ยนจาก batch ก่อน",
-    "gold": "ขึ้น/ลง/ทรงตัว: เหตุผลสั้น",
-    "forex": "แข็ง/อ่อน/ทรงตัว: เหตุผลสั้น",
+    "consistency_note": "อธิบายสั้นๆ ว่าทำไมเลือก sentiment นี้ (อ้างอิงคำสำคัญที่เห็น)",
+    "gold": "ขึ้น/ลง/ทรงตัว: เหตุผล",
+    "forex": "แข็ง/อ่อน/ทรงตัว: เหตุผล",
     "stock": "ขึ้น/ลง/ทรงตัว: กลุ่ม + เหตุผล"
 }}"""
 
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
+                print(f"📡 Calling Analysis API (Attempt {attempt+1})...")
                 with httpx.Client(timeout=45) as client:
                     resp = client.post(
                         "https://openrouter.ai/api/v1/chat/completions",
@@ -382,11 +404,9 @@ class PakeAnalyzerWindow(QMainWindow):
         
         self.show_thai = True
         
-        # Keep references to prevent garbage collection
-        self.translate_thread = None
-        self.translate_worker = None
-        self.analysis_thread = None
-        self.analysis_worker = None
+        # Keep references to prevent garbage collection (use lists for multiple concurrent threads)
+        self.active_threads = []  # List to hold all active threads
+        self.active_workers = []  # List to hold all active workers (CRITICAL!)
         
         # Enhanced Memory System
         self.memory = {
@@ -553,8 +573,16 @@ class PakeAnalyzerWindow(QMainWindow):
         cursor.insertHtml(html)
         self.transcript.ensureCursorVisible()
         
+    def _cleanup_finished_threads(self):
+        """Remove finished threads and workers from the active lists"""
+        self.active_threads = [t for t in self.active_threads if t.isRunning()]
+        # Workers will be cleaned up by deleteLater
+        
     def _process_batch(self, batch: dict):
         self.progress.show()
+        
+        # Cleanup finished threads first
+        self._cleanup_finished_threads()
         
         current_batch = batch.get("current_batch", {})
         text = current_batch.get("text", "")
@@ -567,21 +595,27 @@ class PakeAnalyzerWindow(QMainWindow):
         
         # --- Start Translation Thread ---
         if self.show_thai:
-            self.translate_thread = QThread()
-            self.translate_worker = TranslateWorker(segments, batch_num)
-            self.translate_worker.moveToThread(self.translate_thread)
+            print(f"🔄 Starting Translation Thread for Batch #{batch_num}")
+            translate_thread = QThread()
+            translate_worker = TranslateWorker(segments, batch_num)
+            translate_worker.moveToThread(translate_thread)
             
-            self.translate_thread.started.connect(self.translate_worker.run)
-            self.translate_worker.finished.connect(self._update_translation)
-            self.translate_worker.finished.connect(self.translate_thread.quit)
-            self.translate_worker.finished.connect(self.translate_worker.deleteLater)
-            self.translate_thread.finished.connect(self.translate_thread.deleteLater)
+            translate_thread.started.connect(translate_worker.run)
+            translate_worker.finished.connect(self._update_translation)
+            translate_worker.finished.connect(translate_thread.quit)
+            translate_worker.finished.connect(translate_worker.deleteLater)
+            translate_thread.finished.connect(translate_thread.deleteLater)
+            translate_thread.finished.connect(lambda: self._cleanup_finished_threads())
             
-            self.translate_thread.start()
+            # Keep reference to prevent garbage collection - CRITICAL!
+            self.active_threads.append(translate_thread)
+            self.active_workers.append(translate_worker)
+            translate_thread.start()
         
         # --- Start Analysis Thread (with full memory) ---
-        self.analysis_thread = QThread()
-        self.analysis_worker = AnalysisWorker(
+        print(f"🔄 Starting Analysis Thread for Batch #{batch_num}")
+        analysis_thread = QThread()
+        analysis_worker = AnalysisWorker(
             text, batch_num, 
             previous_context=previous_context,
             memory={
@@ -590,16 +624,20 @@ class PakeAnalyzerWindow(QMainWindow):
                 "trend": self.memory["trend"].copy()
             }
         )
-        self.analysis_worker.moveToThread(self.analysis_thread)
+        analysis_worker.moveToThread(analysis_thread)
         
-        self.analysis_thread.started.connect(self.analysis_worker.run)
-        self.analysis_worker.finished.connect(self._update_analysis)
-        self.analysis_worker.finished.connect(self.analysis_thread.quit)
-        self.analysis_worker.finished.connect(self.analysis_worker.deleteLater)
-        self.analysis_thread.finished.connect(self.analysis_thread.deleteLater)
-        self.analysis_thread.finished.connect(lambda: self.progress.hide())
+        analysis_thread.started.connect(analysis_worker.run)
+        analysis_worker.finished.connect(self._update_analysis)
+        analysis_worker.finished.connect(analysis_thread.quit)
+        analysis_worker.finished.connect(analysis_worker.deleteLater)
+        analysis_thread.finished.connect(analysis_thread.deleteLater)
+        analysis_thread.finished.connect(lambda: self.progress.hide())
+        analysis_thread.finished.connect(lambda: self._cleanup_finished_threads())
         
-        self.analysis_thread.start()
+        # Keep reference to prevent garbage collection - CRITICAL!
+        self.active_threads.append(analysis_thread)
+        self.active_workers.append(analysis_worker)
+        analysis_thread.start()
         
     def _update_translation(self, batch_num: int, segments: list):
         if not segments:
@@ -757,8 +795,16 @@ BATCH #{batch_num} • {now}
         self.trend_label.setStyleSheet(f"font-size: 11px; color: {color}; font-weight: bold; padding: 4px 10px; background: {bg}; border-radius: 4px;")
         
     def closeEvent(self, event):
+        # Stop server first
         self.server.stop()
         self.server.wait(1000)
+        
+        # Wait for all active threads to finish
+        for thread in self.active_threads:
+            if thread.isRunning():
+                thread.quit()
+                thread.wait(2000)  # Wait up to 2 seconds per thread
+        
         event.accept()
 
 # ============================================================================
