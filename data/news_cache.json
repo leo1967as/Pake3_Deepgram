@@ -1,6 +1,169 @@
 {
-  "last_update": "2026-02-03 00:51:30",
+  "last_update": "2026-02-03 23:56:31",
   "timeframe": "today",
-  "source": "mt5",
-  "data": []
+  "source": "forexfactory",
+  "data": [
+    {
+      "actual": "",
+      "currency": "USD",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "",
+      "time": "12:30am",
+      "title": "FOMC Member Bostic Speaks"
+    },
+    {
+      "actual": "",
+      "currency": "USD",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "",
+      "time": "2:00am",
+      "title": "Loan Officer Survey"
+    },
+    {
+      "actual": "-4.6%",
+      "currency": "NZD",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "2.7%",
+      "time": "4:45am",
+      "title": "Building Consents m/m"
+    },
+    {
+      "actual": "-9.5%",
+      "currency": "JPY",
+      "forecast": "-10.3%",
+      "impact": "Low",
+      "previous": "-9.8%",
+      "time": "6:50am",
+      "title": "Monetary Base y/y"
+    },
+    {
+      "actual": "-14.9%",
+      "currency": "AUD",
+      "forecast": "-6.2%",
+      "impact": "Low",
+      "previous": "13.1%",
+      "time": "7:30am",
+      "title": "Building Approvals m/m"
+    },
+    {
+      "actual": "3.85%",
+      "currency": "AUD",
+      "forecast": "3.85%",
+      "impact": "High",
+      "previous": "3.60%",
+      "time": "10:30am",
+      "title": "Cash Rate"
+    },
+    {
+      "actual": "",
+      "currency": "AUD",
+      "forecast": "",
+      "impact": "High",
+      "previous": "",
+      "time": "",
+      "title": "RBA Monetary Policy Statement"
+    },
+    {
+      "actual": "",
+      "currency": "AUD",
+      "forecast": "",
+      "impact": "High",
+      "previous": "",
+      "time": "",
+      "title": "RBA Rate Statement"
+    },
+    {
+      "actual": "2.25|3.0",
+      "currency": "JPY",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "2.10|3.3",
+      "time": "10:35am",
+      "title": "10-y Bond Auction"
+    },
+    {
+      "actual": "",
+      "currency": "AUD",
+      "forecast": "",
+      "impact": "High",
+      "previous": "",
+      "time": "11:30am",
+      "title": "RBA Press Conference"
+    },
+    {
+      "actual": "-124.7B",
+      "currency": "EUR",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "-155.4B",
+      "time": "2:45pm",
+      "title": "French Gov Budget Balance"
+    },
+    {
+      "actual": "-0.3%",
+      "currency": "EUR",
+      "forecast": "-0.1%",
+      "impact": "Low",
+      "previous": "0.1%",
+      "time": "",
+      "title": "French Prelim CPI m/m"
+    },
+    {
+      "actual": "30.4K",
+      "currency": "EUR",
+      "forecast": "13.4K",
+      "impact": "Low",
+      "previous": "-16.3K",
+      "time": "3:00pm",
+      "title": "Spanish Unemployment Change"
+    },
+    {
+      "actual": "4.59|3.6",
+      "currency": "GBP",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "4.46|3.3",
+      "time": "5:02pm",
+      "title": "10-y Bond Auction"
+    },
+    {
+      "actual": "",
+      "currency": "USD",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "",
+      "time": "8:00pm",
+      "title": "FOMC Member Barkin Speaks"
+    },
+    {
+      "actual": "",
+      "currency": "USD",
+      "forecast": "",
+      "impact": "Low",
+      "previous": "",
+      "time": "9:40pm",
+      "title": "FOMC Member Bowman Speaks"
+    },
+    {
+      "actual": "48.8",
+      "currency": "USD",
+      "forecast": "47.9",
+      "impact": "Low",
+      "previous": "47.2",
+      "time": "10:01pm",
+      "title": "RCM/TIPP Economic Optimism"
+    },
+    {
+      "actual": "",
+      "currency": "USD",
+      "forecast": "15.3M",
+      "impact": "Low",
+      "previous": "16.0M",
+      "time": "All Day",
+      "title": "Wards Total Vehicle Sales"
+    }
+  ]
 }

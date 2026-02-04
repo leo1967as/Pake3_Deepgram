@@ -22,9 +22,19 @@ from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer
 from PySide6.QtGui import QFont, QTextCursor, QIcon, QAction
 
 from economic_detector import ForexFactoryScraper
+from cost_logger import log_api_cost
 
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_KEY", "")
+
+# AI Configuration (Saved in .env)
+MODEL_TRANSLATE = os.getenv("MODEL_TRANSLATE", "google/gemini-2.5-flash-lite")
+MODEL_ANALYSIS = os.getenv("MODEL_ANALYSIS", "google/gemini-3-flash-preview")
+MODEL_SUMMARY = os.getenv("MODEL_SUMMARY", "google/gemini-3-pro-preview")
+
+TOKEN_LIMIT_TRANSLATE = int(os.getenv("TOKEN_LIMIT_TRANSLATE", 1000))
+TOKEN_LIMIT_ANALYSIS = int(os.getenv("TOKEN_LIMIT_ANALYSIS", 2000))
+TOKEN_LIMIT_SUMMARY = int(os.getenv("TOKEN_LIMIT_SUMMARY", 4096))
 
 DECISION_RULES = """
 ### 🚨 กฎการตัดสินใจ (ต้องปฏิบัติตาม 100% - ห้ามใช้ "ทรงตัว" เมื่อมีคำเหล่านี้)
@@ -210,11 +220,22 @@ class TranslateWorker(QObject):
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                         json={
-                            "model": "google/gemini-2.0-flash-001",
-                            "messages": [{"role": "user", "content": prompt}]
+                            "model": MODEL_TRANSLATE,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "max_tokens": TOKEN_LIMIT_TRANSLATE
                         }
                     )
                     result = resp.json()
+                    
+                    # 📊 Log Token Usage
+                    usage = result.get("usage", {})
+                    p_tok = usage.get("prompt_tokens", 0)
+                    c_tok = usage.get("completion_tokens", 0)
+                    t_tok = usage.get("total_tokens", 0)
+                    cost = result.get("cost", 0)
+                    print(f"💰 [Translate] Usage: P={p_tok}, C={c_tok}, Total={t_tok}, Cost=${cost:.6f}")
+                    log_api_cost("Translate", MODEL_TRANSLATE, usage, cost, self.batch_num)
+
                     translated_text = result["choices"][0]["message"]["content"]
                     
                     # Parse translated lines back into segments
@@ -339,14 +360,24 @@ class AnalysisWorker(QObject):
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                         json={
-                            "model": "google/gemini-2.5-flash",
+                            "model": MODEL_ANALYSIS,
                             "messages": [{"role": "user", "content": prompt}],
                             "response_format": {"type": "json_object"},
-                            "provider": {"order": ["google-vertex/global"]}
+                            "provider": {"order": ["google-vertex/global"]},
+                            "max_tokens": TOKEN_LIMIT_ANALYSIS
                         }
                     )
                     result = resp.json()
                     
+                    # 📊 Log Token Usage
+                    usage = result.get("usage", {})
+                    p_tok = usage.get("prompt_tokens", 0)
+                    c_tok = usage.get("completion_tokens", 0)
+                    t_tok = usage.get("total_tokens", 0)
+                    cost = result.get("cost", 0)
+                    print(f"💰 [Analysis] Usage: P={p_tok}, C={c_tok}, Total={t_tok}, Cost=${cost:.6f}")
+                    log_api_cost("Analysis", MODEL_ANALYSIS, usage, cost, self.batch_num)
+
                     # Debug: print raw response keys
                     # print(f"🔍 API Response keys: {list(result.keys())}")
                     
@@ -399,6 +430,97 @@ class AnalysisWorker(QObject):
                 else:
                     print(f"⚠️ Analysis Error (Attempt {attempt+1}): {e} - Retrying...")
                     time.sleep(2 ** attempt)
+
+
+# ============================================================================
+# SESSION SUMMARY WORKER (NEW: สรุปภาพรวมจากประวัติ)
+# ============================================================================
+class SessionSummaryWorker(QObject):
+    finished = Signal(dict)
+
+    def __init__(self, summaries_history: list):
+        super().__init__()
+        # ✅ Copy list to prevent thread race conditions
+        self.history = list(summaries_history) 
+
+    def run(self):
+        if not OPENROUTER_API_KEY or not self.history:
+            self.finished.emit({})
+            return
+
+        print(f"🌍 SessionSummaryWorker running with {len(self.history)} summaries...")
+
+        # รวบรวมสรุปย้อนหลังมาทำเป็น text เดียว
+        # Context: Last 15 batches or less
+        context_text = "\n".join([f"- Batch {h['batch']}: {h['summary']} ({h['sentiment']})" for h in self.history[-15:]])
+
+        # 🔥 New "War Room" Prompt
+        prompt = f"""คุณคือ "Supreme Commander" ใน War Room ของกองทุนระดับโลก (Hedge Fund)
+หน้าที่ของคุณคืออ่านข้อมูลดิบจากสนามรบ (Summaries) แล้วประเมินสถานการณ์เชิงยุทธศาสตร์
+
+ข้อมูลจากสนามรบ:
+{context_text}
+
+จงวิเคราะห์และสร้าง "Strategic Intelligence Brief":
+1. **The Core Narrative**: จริงๆ แล้ววันนี้ตลาดกำลัง "กลัว" หรือ "หวัง" เรื่องอะไรกันแน่? (อ่านให้ออกมากกว่าแค่ text)
+2. **Hidden Signals**: มีสัญญาณอะไรที่คนทั่วไปมองข้ามไหม?
+3. **Actionable Intel**: ถ้าคุณต้องสั่งเทรดเดี๋ยวนี้ คุณจะสั่ง Long หรือ Short อะไร? เพราะอะไร?
+
+ตอบเป็น JSON ภาษาไทย เท่านั้น:
+{{
+    "main_topic": "Narrative หลักของวันนี้ (สั้นๆ กระชับ)",
+    "key_points": ["ประเด็นลึกซึ้ง 1", "ประเด็นลึกซึ้ง 2", "สิ่งที่ตลาดกำลัง Price-in"],
+    "overall_sentiment": "HAWKISH / DOVISH / NEUTRAL",
+    "market_implication": "คำแนะนำการเทรดแบบ Actionable (เช่น 'Short Gold ถ้าระดับ 2030 รับไม่อยู่')",
+    "confidence_score": "ความมั่นใจ 1-10"
+}}"""
+
+        try:
+            with httpx.Client(timeout=60) as client:
+                resp = client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                    json={
+                        "model": MODEL_SUMMARY,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "response_format": {"type": "json_object"},
+                        "max_tokens": TOKEN_LIMIT_SUMMARY
+                    }
+                )
+                result = resp.json()
+                
+                # 📊 Log Token Usage
+                usage = result.get("usage", {})
+                p_tok = usage.get("prompt_tokens", 0)
+                c_tok = usage.get("completion_tokens", 0)
+                t_tok = usage.get("total_tokens", 0)
+                cost = result.get("cost", 0)
+                print(f"💰 [Summary] Usage: P={p_tok}, C={c_tok}, Total={t_tok}, Cost=${cost:.6f}")
+                log_api_cost("Summary", MODEL_SUMMARY, usage, cost)
+
+                content = result["choices"][0]["message"]["content"]
+                if content.startswith("```"):
+                    content = "\n".join(content.split("\n")[1:-1])
+                
+                parsed = json.loads(content)
+                
+                # ✅ Defensive Handling: Check if list
+                if isinstance(parsed, list):
+                    print("⚠️ AI returned list instead of dict, taking first item.")
+                    parsed = parsed[0] if len(parsed) > 0 else {}
+                    
+                if not isinstance(parsed, dict):
+                     print(f"❌ Invalid format: {type(parsed)}")
+                     parsed = {}
+                
+                print("🌍 Big Picture Analysis Completed.")
+                self.finished.emit(parsed)
+
+        except Exception as e:
+            print(f"❌ Session Summary Error: {e}")
+            if 'result' in locals():
+                print(f"🔍 Validating logic... Raw API Response: {result}")
+            self.finished.emit({})
 
 # ============================================================================
 # ECONOMIC NEWS WIDGET
@@ -781,17 +903,83 @@ class EconomicNewsWidget(QWidget):
             self.list_layout.insertWidget(0, lbl)
             return
 
+        # 1. Filter items first
+        filtered_items = []
         for item in self.data:
             impact = item.get("impact", "Unknown")
-            
             # Filtering
             if impact == "High" and not self.chk_high.isChecked(): continue
             if impact == "Medium" and not self.chk_med.isChecked(): continue
             if impact == "Low" and not self.chk_low.isChecked(): continue
             if (impact == "Non-Econ" or impact == "Unknown") and not self.chk_none.isChecked(): continue
+            filtered_items.append(item)
+
+        # 2. Find Next Event (Closest future event)
+        now = datetime.datetime.now()
+        pinned_item = None
+        candidates = []
+        
+        for item in filtered_items:
+            dt = self.parse_news_time(item.get("time"))
+            if dt and dt > now:
+                candidates.append((dt, item))
+        
+        if candidates:
+            # Sort by time
+            candidates.sort(key=lambda x: x[0])
+            pinned_item = candidates[0][1]
             
+        # 3. Render Items
+        insert_idx = 0
+        
+        # If we have a pinned item, render it FIRST
+        if pinned_item:
+            # Pinned Card
+            card = self.create_pinned_card(pinned_item)
+            self.list_layout.insertWidget(insert_idx, card)
+            insert_idx += 1
+            
+            # Separator/Label
+            sep_lbl = QLabel("👇 UPCOMING / PAST")
+            sep_lbl.setStyleSheet("color: #606070; font-size: 10px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; border-bottom: 1px solid #2a2a3a;")
+            sep_lbl.setAlignment(Qt.AlignCenter)
+            self.list_layout.insertWidget(insert_idx, sep_lbl)
+            insert_idx += 1
+
+        # Render the rest
+        for item in filtered_items:
+            if item == pinned_item: 
+                continue # Skip because we already showed it at top
+                
             card = self.create_news_card(item)
-            self.list_layout.insertWidget(self.list_layout.count()-1, card)
+            self.list_layout.insertWidget(insert_idx, card)
+            insert_idx += 1
+
+    def create_pinned_card(self, item):
+        frame = self.create_news_card(item)
+        
+        impact = item.get("impact", "Low")
+        color = "#eab308"
+        if impact == "High": color = "#ef4444"
+        elif impact == "Medium": color = "#f59e0b"
+        
+        # Override style for Pinned Item
+        frame.setStyleSheet(f"""
+            QFrame {{ 
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(30, 30, 40, 1), stop:1 rgba(20, 20, 25, 1));
+                border: 2px solid {color}; 
+                border-radius: 6px; 
+            }}
+            QFrame:hover {{ border-color: white; }}
+        """)
+        
+        # Add a "NEXT EVENT" badge overlay or modify layout?
+        # Simpler: Modify the layout of the existing frame instance
+        # Retrieve layout and insert a badge at the top
+        # But layout structure is hard to modify after creation.
+        # Instead, we just rely on the thick border and position (Top).
+        
+        return frame
             
     def create_news_card(self, item):
         frame = QFrame()
@@ -988,14 +1176,36 @@ class PakeAnalyzerWindow(QMainWindow):
         self.thai_view.setReadOnly(True)
         col2_layout.addWidget(self.thai_view)
         
-        # Column 3: AI Intelligence
+        # Column 3: AI Intelligence (ปรับแก้ตรงนี้)
         col3 = QWidget()
         col3_layout = QVBoxLayout(col3)
         col3_layout.setContentsMargins(6, 10, 12, 12)
         
-        lbl3 = QLabel("🧠 INTELLIGENCE")
-        lbl3.setStyleSheet("font-size: 10px; font-weight: bold; margin-bottom: 6px;")
-        col3_layout.addWidget(lbl3)
+        # --- ส่วนที่ 1: Big Picture Dashboard (ของใหม่) ---
+        lbl3_top = QLabel("🌍 BIG PICTURE (LIVE SUMMARY)")
+        lbl3_top.setStyleSheet("font-size: 10px; font-weight: bold; margin-bottom: 6px; color: #f59e0b;")
+        col3_layout.addWidget(lbl3_top)
+
+        self.big_picture_view = QTextEdit()
+        self.big_picture_view.setReadOnly(True)
+        self.big_picture_view.setFixedHeight(280) # เพิ่มความสูงตาม Request
+        self.big_picture_view.setStyleSheet("""
+            QTextEdit { 
+                background-color: #1a1a1f; 
+                border: 1px solid #f59e0b; 
+                border-radius: 6px;
+                padding: 10px;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+        """)
+        col3_layout.addWidget(self.big_picture_view)
+        
+        # --- ส่วนที่ 2: Live Feed (ของเดิม) ---
+        col3_layout.addSpacing(10)
+        lbl3_btm = QLabel("🧠 LIVE INTELLIGENCE FEED")
+        lbl3_btm.setStyleSheet("font-size: 10px; font-weight: bold; margin-bottom: 6px;")
+        col3_layout.addWidget(lbl3_btm)
         
         self.ai_feed = QTextEdit()
         self.ai_feed.setReadOnly(True)
@@ -1106,15 +1316,22 @@ class PakeAnalyzerWindow(QMainWindow):
         self.transcript.ensureCursorVisible()
         
     def _cleanup_finished_threads(self):
-        """Remove finished threads and workers from the active lists"""
-        self.active_threads = [t for t in self.active_threads if t.isRunning()]
-        # Workers will be cleaned up by deleteLater
+        """Deprecated: Unsafe."""
+        pass
+
+    def _safe_remove_thread(self, thread, worker):
+        """Safely remove finished thread/worker from tracking lists."""
+        if thread in self.active_threads:
+            self.active_threads.remove(thread)
+        if worker in self.active_workers:
+            self.active_workers.remove(worker)
+        # print(f"♻️ Cleaned up thread. Active: {len(self.active_threads)}")
         
     def _process_batch(self, batch: dict):
         self.progress.show()
         
         # Cleanup finished threads first
-        self._cleanup_finished_threads()
+        # self._cleanup_finished_threads() # DISABLED: Causing RuntimeError
         
         current_batch = batch.get("current_batch", {})
         text = current_batch.get("text", "")
@@ -1137,7 +1354,9 @@ class PakeAnalyzerWindow(QMainWindow):
             translate_worker.finished.connect(translate_thread.quit)
             translate_worker.finished.connect(translate_worker.deleteLater)
             translate_thread.finished.connect(translate_thread.deleteLater)
-            translate_thread.finished.connect(lambda: self._cleanup_finished_threads())
+            
+            # SAFE Thread Cleanup
+            translate_thread.finished.connect(lambda: self._safe_remove_thread(translate_thread, translate_worker))
             
             # Keep reference to prevent garbage collection - CRITICAL!
             self.active_threads.append(translate_thread)
@@ -1164,7 +1383,9 @@ class PakeAnalyzerWindow(QMainWindow):
         analysis_worker.finished.connect(analysis_worker.deleteLater)
         analysis_thread.finished.connect(analysis_thread.deleteLater)
         analysis_thread.finished.connect(lambda: self.progress.hide())
-        analysis_thread.finished.connect(lambda: self._cleanup_finished_threads())
+        
+        # SAFE Thread Cleanup
+        analysis_thread.finished.connect(lambda: self._safe_remove_thread(analysis_thread, analysis_worker))
         
         # Keep reference to prevent garbage collection - CRITICAL!
         self.active_threads.append(analysis_thread)
@@ -1309,6 +1530,78 @@ BATCH #{batch_num} • {now}
         cursor = self.ai_feed.textCursor()
         cursor.movePosition(QTextCursor.Start)
         cursor.insertHtml(html)
+
+        # 🔥 TRIGGER BIG PICTURE UPDATE
+        # อัปเดตทุกๆ 5 Batches หรือถ้าเพิ่งเริ่ม (Batch 1)
+        if len(self.memory["summaries"]) > 0 and (len(self.memory["summaries"]) % 5 == 0 or len(self.memory["summaries"]) == 1):
+            print("🌍 Triggering Global Summary Update...")
+            
+            # สร้าง Thread สำหรับ Summary แยกต่างหาก
+            summary_thread = QThread()
+            # ส่งประวัติสรุปทั้งหมดไปให้ AI วิเคราะห์ (Copy of list created in __init__)
+            summary_worker = SessionSummaryWorker(self.memory["summaries"]) 
+            summary_worker.moveToThread(summary_thread)
+            
+            summary_thread.started.connect(summary_worker.run)
+            summary_worker.finished.connect(self._update_big_picture) # สร้างฟังก์ชันนี้รับผล
+            summary_worker.finished.connect(summary_thread.quit)
+            summary_worker.finished.connect(summary_worker.deleteLater)
+            summary_thread.finished.connect(summary_thread.deleteLater)
+            summary_thread.finished.connect(lambda: self._cleanup_finished_threads())
+            
+            self.active_threads.append(summary_thread)
+            # self.active_workers.append(summary_worker)  <-- Delete later handles this, no need to keep strict ref if deleteLater is connected
+            # But we keep it to be safe against GC during execution
+            self.active_workers.append(summary_worker)
+            summary_thread.start()
+
+    # เพิ่มฟังก์ชันใหม่สำหรับแสดงผล Big Picture
+    def _update_big_picture(self, data: dict):
+        if not data: return
+        
+        topic = data.get("main_topic", "-")
+        points = data.get("key_points", [])
+        sentiment = data.get("overall_sentiment", "NEUTRAL")
+        market = data.get("market_implication", "-")
+        confidence = data.get("confidence_score", "-")
+        
+        # สร้าง HTML สวยๆ
+        points_html = "".join([f"<li style='margin-bottom:4px;'>{p}</li>" for p in points])
+        
+        color = "#f59e0b"
+        bg_color = "rgba(245, 158, 11, 0.1)"
+        if "HAWK" in sentiment: 
+            color = "#ef4444"
+            bg_color = "rgba(239, 68, 68, 0.1)"
+        elif "DOVE" in sentiment: 
+            color = "#22c55e"
+            bg_color = "rgba(34, 197, 94, 0.1)"
+        
+        html = f"""
+        <div style='font-weight:bold; font-size:16px; color:#e0e0e0; margin-bottom:8px; border-bottom: 1px solid #2a2a3a; padding-bottom:5px;'>
+            📌 {topic}
+        </div>
+        
+        <div style='background:{bg_color}; border-left: 3px solid {color}; padding: 8px; margin-bottom: 10px; border-radius: 4px;'>
+            <div style='font-size:10px; color:{color}; font-weight:bold; margin-bottom:2px;'>INTELLIGENCE ASSESSMENT</div>
+            <span style='font-size:12px; font-weight:bold; color:#e0e0e0;'>SENTIMENT: {sentiment}</span>
+            <span style='float:right; font-size:10px; color:#808090;'>Confidence: {confidence}/10</span>
+        </div>
+        
+        <ul style='margin:0; padding-left:15px; color:#b0b0c0; font-size:13px; margin-bottom:12px;'>
+            {points_html}
+        </ul>
+        
+        <div style='background:#2a2a3a; padding:8px; border-radius:4px;'>
+            <div style='font-size:10px; color:#a0a0ff; font-weight:bold; margin-bottom:4px;'>💡 STRATEGIC ACTION</div>
+            <div style='font-size:12px; color:#e0e0e0; font-style:italic;'>"{market}"</div>
+        </div>
+        """
+        
+        self.big_picture_view.setHtml(html)
+        
+        # Scroll to top just in case
+        self.big_picture_view.verticalScrollBar().setValue(0)
     
     def _update_trend_indicator(self):
         """Update the overall trend indicator in header"""

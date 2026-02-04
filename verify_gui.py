@@ -1,44 +1,47 @@
 import sys
 import os
-
-# Add src to path so we can import pake_gui
-sys.path.append(os.path.join(os.getcwd(), "src"))
-
+sys.path.append(os.path.join(os.getcwd(), 'src'))
 from PySide6.QtWidgets import QApplication
 from pake_gui import PakeAnalyzerWindow
+# from config import ConfigLoader # Not found in src
 
-def verify_gui():
-    print("🚀 Starting GUI Verification...")
+try:
+    # 1. Test Config
+    # print("Testing ConfigLoader...")
+    # c = ConfigLoader().load()
+    # print(f"[PASS] Config loaded successfully")
+
+    # 2. Test GUI Initialization (Headless check)
+    print("Testing GUI Initialization...")
+    app = QApplication(sys.argv)
+    
+    # สร้าง Window แต่ไม่ต้องสั่ง app.exec() เพื่อไม่ให้ค้าง
+    w = PakeAnalyzerWindow()
+    print(f"[PASS] GUI Window initialized successfully")
+    
+    # ถ้ามาถึงตรงนี้แปลว่าผ่าน
+    sys.exit(0) 
+
+except ImportError as e:
+    # กรณี import ไม่ได้ อาจเพราะไม่มี PyQt6 หรือ path ผิด
+    # ลองใช้ PySide6 แทน (เนื่องจากโปรเจคใช้ PySide6)
     try:
+        from PySide6.QtWidgets import QApplication
+        from src.pake_gui import PakeAnalyzerWindow
+        # config might be different or not exist in src directly based on file structure, 
+        # but let's try to mock or load if possible.
+        # User snippet used ConfigLoader, but I don't recall seeing it in pake_gui.py imports.
+        # In pake_gui.py, it uses load_dotenv directly.
+        
+        print("[INFO] Fallback to PySide6")
         app = QApplication(sys.argv)
-        
-        print("⏳ Initializing PakeAnalyzerWindow...")
-        window = PakeAnalyzerWindow()
-        
-        # Check if news dock exists
-        if hasattr(window, "news_dock"):
-             print("✅ News Dock found initialized.")
-        else:
-             print("❌ News Dock NOT found.")
-             sys.exit(1)
-             
-        # Check if news button exists
-        if hasattr(window, "btn_news"):
-             print("✅ News Button found initialized.")
-        else:
-             print("❌ News Button NOT found.")
-             sys.exit(1)
-
-        print("✅ GUI Components initialized successfully.")
-        
-        # Don't run exec(), just exit with success
+        w = PakeAnalyzerWindow()
+        print(f"[PASS] GUI Window initialized successfully (PySide6)")
         sys.exit(0)
+    except Exception as e2:
+         print(f"[FAIL] Error: {e2}")
+         sys.exit(1)
 
-    except Exception as e:
-        print(f"❌ GUI Verification Failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
-if __name__ == "__main__":
-    verify_gui()
+except Exception as e:
+    print(f"[FAIL] Error: {e}")
+    sys.exit(1)

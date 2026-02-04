@@ -1,0 +1,249 @@
+generation_id,created_at,cost_total,cost_web_search,cost_cache,cost_file_processing,byok_usage_inference,tokens_prompt,tokens_completion,tokens_reasoning,tokens_cached,model_permaslug,provider_name,variant,cancelled,streamed,user,finish_reason_raw,finish_reason_normalized,generation_time_ms,time_to_first_token_ms,app_name,api_key_name
+gen-1770138563-voyotKbZgH5NGYN6NJds,09:22.4,0.02521,,,,0.02521,881,1954,1654,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,24096,4234,,obsidian_openrouter
+gen-1770138558-OeR8ISwnSdBevfXjw5L3,09:18.0,0.001711,,,,0.001711,1394,338,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3051,1093,,obsidian_openrouter
+gen-1770138533-rk9HWqX3JNK8fjPRJ5xh,08:52.7,0.0261,,,,0.0261,876,2029,1848,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,MAX_TOKENS,length,24531,3795,,obsidian_openrouter
+gen-1770138528-lVuyNPXrgjUt7OjkTFcD,08:47.4,0.001733,,,,0.001733,1415,342,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3007,968,,obsidian_openrouter
+gen-1770138500-rYdqL7kmgQGgb5HIQ3jJ,08:20.5,0.026134,,,,0.026134,881,2031,1984,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,MAX_TOKENS,length,27345,5782,,obsidian_openrouter
+gen-1770138497-xB5UgmNwtEe7gOXZOv1Q,08:16.2,0.001524,,,,0.001524,1411,273,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2674,1388,,obsidian_openrouter
+gen-1770138469-qKWFK3tinHjcxEaIC6qU,07:48.6,0.026324,,,,0.026324,898,2044,2042,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,MAX_TOKENS,length,26379,3561,,obsidian_openrouter
+gen-1770138465-wvBifjDC9LZ1aJ6oPIJL,07:43.7,0.001624,,,,0.001624,1419,305,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3026,1565,,obsidian_openrouter
+gen-1770138435-hC04yBdjI3gmpYaYjG7W,07:14.8,0.024524,,,,0.024524,892,1895,1571,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,24668,3285,,obsidian_openrouter
+gen-1770138430-1JvjlBrYzhAEC71zgxyw,07:10.2,0.001552,,,,0.001552,1437,278,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,3304,1514,,obsidian_openrouter
+gen-1770138403-afXfbm651T3q9wAaWTlG,06:42.7,0.024916,,,,0.024916,890,1928,1609,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,26978,7344,,obsidian_openrouter
+gen-1770138399-ld47kBNOxtdiVHUfvYTY,06:38.7,0.00151,,,,0.00151,1460,260,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2540,1431,,obsidian_openrouter
+gen-1770138374-7EbIiuzCeYzbtagmtZVU,06:13.0,0.026218,,,,0.026218,917,2032,1884,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,MAX_TOKENS,length,24372,3735,,obsidian_openrouter
+gen-1770138368-YfdFlnVvu8TyZ7q5hEOS,06:08.0,0.001725,,,,0.001725,1447,334,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,3646,1590,,obsidian_openrouter
+gen-1770138343-aiwDxD6BTRzpwvft7Nwz,05:42.7,0.018168,,,,0.018168,888,1366,1028,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,17438,3362,,obsidian_openrouter
+gen-1770138338-9Lx140QQfEYdv4WtZkVp,05:37.6,0.00165,,,,0.00165,1447,309,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3249,1430,,obsidian_openrouter
+gen-1770138323-humND4oHyaCaz9PLNz0V,05:22.7,0.02611,,,,0.02611,881,2029,1690,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,MAX_TOKENS,length,25582,3624,,obsidian_openrouter
+gen-1770138309-1I1l1JF3NW1zHQxkPW2X,05:08.6,0.001642,,,,0.001642,1448,306,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,12136,10120,,obsidian_openrouter
+gen-1770138283-ibzoTLxG8uAHfX5AfdGe,04:42.1,0.022208,,,,0.022208,868,1706,1398,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,20947,3504,,obsidian_openrouter
+gen-1770138278-TRKk95thj0HyVgEpBg3Q,04:37.1,0.001616,,,,0.001616,1391,307,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2986,1256,,obsidian_openrouter
+gen-1770138251-I9g9GFCG7eYgOcftpDwn,04:10.4,0.02577,,,,0.02577,861,2004,1705,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,23700,4222,,obsidian_openrouter
+gen-1770138247-iBETxAqvGIaPS9or4Vfn,04:06.2,0.001575,,,,0.001575,1428,287,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2772,990,,obsidian_openrouter
+gen-1770138220-Oj3sPojS0yp9rLZLjuSF,03:39.6,0.025908,,,,0.025908,852,2017,1675,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,37441,7930,,obsidian_openrouter
+gen-1770138216-yYF0nmjcFpTR80XxJLiO,03:35.2,0.001652,,,,0.001652,1438,311,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2975,1216,,obsidian_openrouter
+gen-1770138197-7S38rPSTVVRRUFTBOKae,03:16.0,0.021092,,,,0.021092,844,1617,1301,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,19798,3452,,obsidian_openrouter
+gen-1770138186-1QgjlFfhUVwm0QspeSd1,03:04.8,0.001617,,,,0.001617,1410,304,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,9103,6992,,obsidian_openrouter
+gen-1770137132-iUmuhPGEHkoJn0N6qwGD,45:31.9,0.021012,,,,0.021012,840,1611,1305,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,21746,4929,,obsidian_openrouter
+gen-1770137128-LnniEKavWh2XbAFy0tfr,45:27.7,0.000144,,,,0.000144,275,292,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2049,599,,obsidian_openrouter
+gen-1770137128-w9Z2Hh98WDJgUtL6QgDg,45:27.7,0.00159,,,,0.00159,1446,289,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2613,1124,,obsidian_openrouter
+gen-1770137104-Iv5phqrPGaJr1PyySmEC,45:03.2,0.024506,,,,0.024506,841,1902,1624,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,22982,3624,,obsidian_openrouter
+gen-1770137097-b81pYeJ9NnvtYbHvCNsi,44:56.8,0.000096,,,,0.000096,200,192,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2399,1629,,obsidian_openrouter
+gen-1770137097-uH0CPQw9xzeM0o1tAmP3,44:56.7,0.001555,,,,0.001555,1389,287,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2944,1343,,obsidian_openrouter
+gen-1770137072-cwTbOsvmSg76d9XAj4h3,44:31.8,0.024134,,,,0.024134,853,1869,1555,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,24053,4011,,obsidian_openrouter
+gen-1770137067-DmRX8EYJCDFPGuUAPPsu,44:26.5,0.000112,,,,0.000112,213,229,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2530,1672,,obsidian_openrouter
+gen-1770137067-GRdFWprW0bNWGmMgKhzq,44:26.5,0.001677,,,,0.001677,1405,325,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3021,950,,obsidian_openrouter
+gen-1770137040-yI7x3MwLfmphZ0QITPxb,43:59.8,0.023008,,,,0.023008,842,1777,1438,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,22979,3957,,obsidian_openrouter
+gen-1770137037-9lYSQGlIGsRuor7n7lfF,43:56.1,0.000133,,,,0.000133,296,260,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1802,523,,obsidian_openrouter
+gen-1770137037-PwiAmnPwTrSInabklUdJ,43:56.1,0.001517,,,,0.001517,1468,261,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2361,1168,,obsidian_openrouter
+gen-1770137017-gdc1HSrXMZkdKEsfay4P,43:36.9,0.026032,,,,0.026032,842,2029,1699,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,MAX_TOKENS,length,26521,4086,,obsidian_openrouter
+gen-1770137000-wXBEoT1dQND9zyWQ4nZG,43:19.9,0.001541,,,,0.001541,1397,281,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2944,1448,,obsidian_openrouter
+gen-1770137001-FpAcCVMABLll32wnrJjC,43:19.9,0.000102,,,,0.000102,194,208,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,3007,1908,,obsidian_openrouter
+gen-1770136975-nislddkPQzUhSY5niYjY,42:54.9,0.026242,,,,0.026242,851,2045,2045,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,MAX_TOKENS,length,27204,3713,,obsidian_openrouter
+gen-1770136971-mNuv9KWQuU1zu0rj4iHx,42:49.9,0.001621,,,,0.001621,1388,309,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,3383,1512,,obsidian_openrouter
+gen-1770136971-MyXwnNdbtbFvYqIkPm7D,42:49.9,0.000094,,,,0.000094,208,184,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1872,790,,obsidian_openrouter
+gen-1770136943-F4XvCqMnQ8n9nhMEPFrF,42:22.7,0.024142,,,,0.024142,845,1871,1522,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,24724,3975,,obsidian_openrouter
+gen-1770136939-Jzazl0fQ0veGxWjQXrzk,42:18.6,0.000101,,,,0.000101,207,202,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2698,1754,,obsidian_openrouter
+gen-1770136939-2hPYfsEdgEA2QRaiz60r,42:18.5,0.001533,,,,0.001533,1405,277,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2875,1180,,obsidian_openrouter
+gen-1770136913-q9oRGgLNQl6SSRJJyVTs,41:52.6,0.026252,,,,0.026252,856,2045,2045,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,MAX_TOKENS,length,27149,3585,,obsidian_openrouter
+gen-1770136909-da3U13XZD1L32Ly3Khvw,41:48.4,0.000128,,,,0.000128,241,262,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2005,551,,obsidian_openrouter
+gen-1770136909-CWJuRYrOjDsvpvxdcgWG,41:48.4,0.001507,,,,0.001507,1424,265,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2560,1133,,obsidian_openrouter
+gen-1770136881-vJKMURnOyl7kUMBBCwSi,41:20.2,0.022832,,,,0.022832,856,1760,1460,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,23124,4175,,obsidian_openrouter
+gen-1770136876-IzbLMhWAdNPPg1uw1eyF,41:15.9,0.000097,,,,0.000097,214,191,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2902,1730,,obsidian_openrouter
+gen-1770136876-3UWR4bbX6qJD0a9xoUqD,41:15.9,0.001649,,,,0.001649,1426,312,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3000,1027,,obsidian_openrouter
+gen-1770136847-6RebZpJMuuo9IqBeSzS7,40:46.5,0.02442,,,,0.02442,864,1891,1520,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,23243,3260,,obsidian_openrouter
+gen-1770136842-DhtRnYqtSnbd76LwUESI,40:42.1,0.001626,,,,0.001626,1429,304,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3027,1358,,obsidian_openrouter
+gen-1770136842-pPCTZfsUelb40ZS17yqH,40:41.9,0.000107,,,,0.000107,227,213,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2572,1715,,obsidian_openrouter
+gen-1770136835-1CArvfJ0xmmHVls93sXt,40:34.4,0.023932,,,,0.023932,860,1851,1549,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,22287,3680,,obsidian_openrouter
+gen-1770136810-xRWsjNUtxJLkiWwszmUO,40:09.8,0.00145,,,,0.00145,1401,250,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,22837,21381,,obsidian_openrouter
+gen-1770136810-K9IDRglfkQDwgLs4tCCz,40:09.8,0.000089,,,,0.000089,205,173,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1428,563,,obsidian_openrouter
+gen-1770136779-FT22Qf41oqWsCc3WIp6u,39:38.8,0.001532,,,,0.001532,1396,278,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2584,1081,,obsidian_openrouter
+gen-1770136779-qX9b4LeIJe8vFAD9YTcE,39:38.8,0.000097,,,,0.000097,208,192,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1810,625,,obsidian_openrouter
+gen-1770136757-V7IsQizQRvugbs69bXqk,39:17.1,0.001494,,,,0.001494,1344,274,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2693,1303,,obsidian_openrouter
+gen-1770136748-9kiyMjiMkEV8BMmAHvXs,39:08.1,0.000093,,,,0.000093,177,189,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2936,1918,,obsidian_openrouter
+gen-1770136718-NLvgIfYJGHAuL81jVOwC,38:37.6,0.001567,,,,0.001567,1382,292,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2921,1174,,obsidian_openrouter
+gen-1770136718-lkdqcPrGDeY3ZX55B3Bp,38:37.6,0.00012,,,,0.00012,213,249,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1750,687,,obsidian_openrouter
+gen-1770136688-t4uCZeUOZoK3uvb732hn,38:07.5,0.001502,,,,0.001502,1397,268,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,35423,33711,,obsidian_openrouter
+gen-1770136688-0xkZStwusHBLyj7OFWrN,38:07.5,0.00013,,,,0.00013,236,266,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2974,1769,,obsidian_openrouter
+gen-1770136658-4l57c4kcnYmwW2BVG3UX,37:37.9,0.021184,,,,0.021184,578,1669,1382,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,21399,3494,,obsidian_openrouter
+gen-1770136654-i0bM97ZYAUtifnMXBGX4,37:34.1,0.00155,,,,0.00155,1330,295,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2629,1060,,obsidian_openrouter
+gen-1770136654-FebfDRUQNsPTnREU0nKd,37:33.7,0.000104,,,,0.000104,193,214,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2438,586,,obsidian_openrouter
+gen-1770136621-oKTrZkwDrWHdKPqHCH0s,37:00.2,0.001602,,,,0.001602,1261,324,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2733,1042,,obsidian_openrouter
+gen-1770136621-irvPtsgylWGcfepR5vcO,37:00.2,0.000094,,,,0.000094,178,191,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1491,550,,obsidian_openrouter
+gen-1770136590-yz2mTG6KDb8rLAQfOaXR,36:29.8,0.001383,,,,0.001383,1207,260,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2522,1169,,obsidian_openrouter
+gen-1770136590-QnVvYTcqkSM8KB8BFgHc,36:29.8,0.0001,,,,0.0001,173,208,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2783,1803,,obsidian_openrouter
+gen-1770136559-FrCSaeqYjSVIMUcTp0Ar,35:58.9,0.00012,,,,0.00012,220,247,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1572,501,,obsidian_openrouter
+gen-1770136559-I1XA1bVGtAZnmibChRYe,35:58.9,0.001513,,,,0.001513,1173,309,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2909,1130,,obsidian_openrouter
+gen-1770136532-Y5KzDkzDsdL9uyW2Yi2d,35:31.8,0.019508,,,,0.019508,352,1567,1275,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,20615,3496,,obsidian_openrouter
+gen-1770136528-MrwziUtfsFwhFLAXYVTi,35:27.4,0.001375,,,,0.001375,945,301,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2691,1209,,obsidian_openrouter
+gen-1770136528-jrNLv2C79v2GCcvLKvCf,35:27.4,0.000136,,,,0.000136,238,282,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2020,741,,obsidian_openrouter
+gen-1770128939-UFqhniyGy9t9jwRjq32P,28:59.2,0.000088,,,,0.000088,201,172,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1172,425,,obsidian_openrouter
+gen-1770128940-i347JMWZI7gHWAz7wJby,28:59.1,0.001594,,,,0.001594,1382,301,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2887,1136,,obsidian_openrouter
+gen-1770128909-5N4N2ZBQRGB79UjmsuDW,28:28.8,0.001726,,,,0.001726,1437,336,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3131,1201,,obsidian_openrouter
+gen-1770128909-zJikH0ouxDJoXxHknLlT,28:28.7,0.000122,,,,0.000122,235,247,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2721,1681,,obsidian_openrouter
+gen-1770128878-DAeQKDgWEu4svEleo32u,27:57.3,0.00161,,,,0.00161,1426,299,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2690,837,,obsidian_openrouter
+gen-1770128878-2MxjiTKv0rup5cD7WVRL,27:57.3,0.00011,,,,0.00011,233,218,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2392,1689,,obsidian_openrouter
+gen-1770128857-IXyF3vukDYiSobzwHNW9,27:36.2,0.02195,,,,0.02195,571,1734,1414,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,23988,3955,,obsidian_openrouter
+gen-1770128852-dv1n2ZJwX6ek2C7CkEKn,27:31.6,0.001613,,,,0.001613,1421,301,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2978,933,,obsidian_openrouter
+gen-1770128847-UxpnUKLoC4QeVpPjNh1H,27:26.5,0.001625,,,,0.001625,1421,305,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2703,1477,,obsidian_openrouter
+gen-1770128847-uzQGzLWdiTJ9LOTf8aUQ,27:26.5,0.000125,,,,0.000125,275,246,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1456,515,,obsidian_openrouter
+gen-1770128816-ID20AjVPFuAcy6vvr50f,26:55.6,0.001466,,,,0.001466,1342,265,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2414,1013,,obsidian_openrouter
+gen-1770128816-WE7ylVzTSEgPLBs9Xu2n,26:55.5,0.000099,,,,0.000099,244,188,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2399,1735,,obsidian_openrouter
+gen-1770128786-FsfvIqWrCTaM2iGWNDp3,26:25.2,0.000094,,,,0.000094,199,187,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1303,496,,obsidian_openrouter
+gen-1770128786-FVLKMef9hdCzyPLRs46T,26:25.2,0.001375,,,,0.001375,1226,254,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2474,1095,,obsidian_openrouter
+gen-1770128755-vmFXEBzeUnUxf3euzU33,25:54.3,0.001563,,,,0.001563,1218,318,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2734,1112,,obsidian_openrouter
+gen-1770128755-qcpZAZdxTn7261XwSU8i,25:54.3,0.000126,,,,0.000126,256,251,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2402,1583,,obsidian_openrouter
+gen-1770128726-32NzXwamEvaVQCjLOLKV,25:25.7,0.02008,,,,0.02008,356,1614,1308,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,21889,3892,,obsidian_openrouter
+gen-1770128722-icWTXy0NxliRvBUfHTUB,25:21.0,0.001418,,,,0.001418,964,312,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3039,1310,,obsidian_openrouter
+gen-1770128722-Sq2vkYzTbcwrpXdjDGN0,25:21.0,0.000118,,,,0.000118,257,231,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2686,1841,,obsidian_openrouter
+gen-1770127506-VaJe00emOrzOXlYZ35uX,05:05.7,0.000105,,,,0.000105,232,205,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2446,1590,,obsidian_openrouter
+gen-1770127506-KaLgd1zENzjUNhkVfqi1,05:05.7,0.001635,,,,0.001635,1428,307,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2853,1036,,obsidian_openrouter
+gen-1770127475-u3giN9tgX1Z4WV7sZA86,04:35.1,0.000082,,,,0.000082,214,152,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1179,532,,obsidian_openrouter
+gen-1770127476-HzcVwJgHJmDrMDFIYl3S,04:35.0,0.001552,,,,0.001552,1424,280,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2644,1161,,obsidian_openrouter
+gen-1770127445-4N7qX9Ug37Ov4MAnJaCm,04:04.2,0.000112,,,,0.000112,223,225,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2677,1675,,obsidian_openrouter
+gen-1770127445-eUuTZwmChmCJm0r3ulvW,04:04.2,0.001535,,,,0.001535,1445,271,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2689,1147,,obsidian_openrouter
+gen-1770127414-3joB8d1NBovQWL3QlqoK,03:33.2,0.000103,,,,0.000103,231,201,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1342,427,,obsidian_openrouter
+gen-1770127413-mjetJHwcMqc8ZN64w5a4,03:33.1,0.001606,,,,0.001606,1431,297,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3005,1334,,obsidian_openrouter
+gen-1770127383-Sz5koxRbYtX7NsYdoLON,03:02.5,0.001718,,,,0.001718,1402,339,0,0,google/gemini-3-flash-preview-20251217,Google,standard,FALSE,TRUE,,STOP,stop,7537,5350,,obsidian_openrouter
+gen-1770127382-hJSRsGsi3vsWAhJxGK3U,03:02.4,0.000108,,,,0.000108,224,216,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1563,550,,obsidian_openrouter
+gen-1770127358-6l7NCIrPdCvPKJKHeShq,02:37.0,0.001652,,,,0.001652,1426,313,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2664,1859,,obsidian_openrouter
+gen-1770127352-a6EQexXo2G5qqcDikbDq,02:31.6,0.00012,,,,0.00012,223,246,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1655,482,,obsidian_openrouter
+gen-1770127352-fRk8aLo145e3O2zbEaNC,02:31.6,0.001595,,,,0.001595,1426,294,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2748,1169,,obsidian_openrouter
+gen-1770127317-PihkZdqiuBzTxMaQmKej,01:55.4,0.000097,,,,0.000097,217,190,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2186,1579,,obsidian_openrouter
+gen-1770127316-uVS3C39rhJyyxuHU5XtJ,01:55.4,0.001557,,,,0.001557,1411,284,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2827,2099,,obsidian_openrouter
+gen-1770127285-9ycBywNn70wHTdxy5IYq,01:24.5,0.00156,,,,0.00156,1416,284,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3167,1544,,obsidian_openrouter
+gen-1770127285-lBApmD5X0NERwPdSlBBu,01:24.5,0.000093,,,,0.000093,217,179,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2498,1670,,obsidian_openrouter
+gen-1770127258-ZFMYJXYKEWN1FTXk8G0U,00:57.4,0.022954,,,,0.022954,815,1777,1485,0,google/gemini-3-pro-preview-20251117,Google,standard,FALSE,TRUE,,STOP,stop,30134,7636,,obsidian_openrouter
+gen-1770127255-hMlUYgZGEidVD11ginBX,00:54.0,0.000101,,,,0.000101,231,195,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1208,452,,obsidian_openrouter
+gen-1770127254-B5S7zLF6tEXWbpbgedN0,00:53.8,0.001484,,,,0.001484,1420,258,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2570,1110,,obsidian_openrouter
+gen-1770127224-clJCRjKGhRNJDYrxAivq,00:22.9,0.000096,,,,0.000096,215,188,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1493,486,,obsidian_openrouter
+gen-1770127223-LziHk1HcH8fcB4lKHGBU,00:22.8,0.001576,,,,0.001576,1412,290,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2741,1035,,obsidian_openrouter
+gen-1770127192-OWuiTQdgXN9Le3yMbBqZ,59:51.8,0.000133,,,,0.000133,270,265,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1502,581,,obsidian_openrouter
+gen-1770127192-hYnEK7CJWrjjCuIFW6io,59:51.8,0.001652,,,,0.001652,1462,307,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2684,1356,,obsidian_openrouter
+gen-1770127167-6kz4Mcr8QnPjdVT6AS9j,59:26.2,0.019894,,,,0.019894,653,1549,1228,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,21030,3781,,obsidian_openrouter
+gen-1770127162-BLbE4KPGH2UhDuC8mwvd,59:20.9,0.000116,,,,0.000116,228,233,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1190,374,,obsidian_openrouter
+gen-1770127161-pbms7tIGYkGMKufgaA3V,59:20.8,0.00169,,,,0.00169,1442,323,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2897,1126,,obsidian_openrouter
+gen-1770127131-pmGwG6pI2NlC1TTQa4jC,58:50.1,0.000121,,,,0.000121,247,241,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2860,1974,,obsidian_openrouter
+gen-1770127131-ooXxkmU6PnGp1aGv9qr2,58:50.1,0.001686,,,,0.001686,1369,334,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3118,1380,,obsidian_openrouter
+gen-1770127100-ny7hHKdluFv9nlqrWgK2,58:19.3,0.000122,,,,0.000122,238,247,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1385,460,,obsidian_openrouter
+gen-1770127100-Qk6QsDX7hsk8joVbCBSi,58:19.2,0.00156,,,,0.00156,1309,302,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2756,1114,,obsidian_openrouter
+gen-1770127071-9zYJQnRMJmyDr4ztKaLD,57:50.1,0.023108,,,,0.023108,478,1846,1549,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,24695,4185,,obsidian_openrouter
+gen-1770127066-u37yMsP42n37m6CURRiD,57:45.7,0.001568,,,,0.001568,1258,313,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2717,996,,obsidian_openrouter
+gen-1770127066-206Bt2lpB3koIy9ljuA8,57:45.6,0.000104,,,,0.000104,196,213,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2527,1707,,obsidian_openrouter
+gen-1770127035-zToGZdBfX1pISeUoUEJd,57:14.9,0.000106,,,,0.000106,237,207,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2534,1626,,obsidian_openrouter
+gen-1770127035-9uyoMgIqwOkRZyO7YXnC,57:14.9,0.001583,,,,0.001583,1216,325,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2920,859,,obsidian_openrouter
+gen-1770127010-39RJaLTZsQ5Hzoc47cgq,56:49.2,0.01739,,,,0.01739,367,1388,1142,0,google/gemini-3-pro-preview-20251117,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,19299,4172,,obsidian_openrouter
+gen-1770127005-N9EOy6IiF8NXWgxFIJ6g,56:44.5,0.001505,,,,0.001505,976,339,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,3027,1137,,obsidian_openrouter
+gen-1770127005-j70nBDA9lr0QkGRKErEz,56:44.5,0.000138,,,,0.000138,269,278,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2977,1888,,obsidian_openrouter
+gen-1770126948-N5k7UjEaqAzKTAPZJwOU,55:47.6,0.000106,,,,0.000106,217,211,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1531,490,,obsidian_openrouter
+gen-1770126948-hWhzGkuONVxFfHaoRtyI,55:47.6,0.001597,,,,0.001597,1286,318,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2794,912,,obsidian_openrouter
+gen-1770126917-3xkSmqkxQa6hm1BFCR44,55:16.5,0.001435,,,,0.001435,1221,275,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2490,981,,obsidian_openrouter
+gen-1770126916-QHEXymCog2OkYERvZ76K,55:16.4,0.000092,,,,0.000092,212,179,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2547,1762,,obsidian_openrouter
+gen-1770126884-PhSKFNkeNqOh202YX745,54:43.0,0.000113,,,,0.000113,228,227,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2464,1615,,obsidian_openrouter
+gen-1770126883-yHYbLoUqYW3aS3wt6M8s,54:43.0,0.001373,,,,0.001373,1205,257,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2571,1151,,obsidian_openrouter
+gen-1770126853-MDBRJpboqnzEFLxlpk3S,54:12.4,0.000137,,,,0.000137,271,275,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,1540,518,,obsidian_openrouter
+gen-1770126853-GAT89pQKiXTAt8VD6svc,54:12.3,0.001403,,,,0.001403,977,305,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2776,1498,,obsidian_openrouter
+gen-1770126617-HcNRCV3gBusGkopkzLB3,50:16.3,0.001522,,,,0.001522,1197,308,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2743,1257,,obsidian_openrouter
+gen-1770126617-0Uo8McPiTRwlp2VnWtva,50:16.3,0.000123,,,,0.000123,244,247,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2536,1633,,obsidian_openrouter
+gen-1770126586-zUDrG3tG3VTEuRc13YQj,49:45.6,0.000152,,,,0.000152,303,306,0,0,google/gemini-2.5-flash-lite,Google,standard,FALSE,TRUE,,STOP,stop,2411,1015,,obsidian_openrouter
+gen-1770126586-lsHOPqrrpbYySnybFFrz,49:45.6,0.001373,,,,0.001373,1019,288,0,0,google/gemini-3-flash-preview-20251217,Google AI Studio,standard,FALSE,TRUE,,STOP,stop,2562,1074,,obsidian_openrouter
+gen-1770126111-V0zwLgi70nyoXaU0hFCd,41:50.4,0.000905,,,,0.000905,1017,240,0,0,google/gemini-2.5-flash,Google,standard,FALSE,TRUE,,STOP,stop,11689,10637,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
+,,,,,,,,,,,,,,,,,,,,,,obsidian_openrouter
