@@ -1,0 +1,12 @@
+{
+    "deepgram_ws_url": "wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1",
+    "target_media_url": "https://www.youtube.com/watch?v=DnbxnlxSH4U",
+    "model_translate": "google/gemini-2.5-flash-lite",
+    "model_analysis": "google/gemini-3-flash-preview",
+    "model_summary": "google/gemini-3-flash-preview",
+    "max_tokens_translate": 1024,
+    "max_tokens_analysis": 1024,
+    "max_tokens_summary": 4096,
+    "enable_translation": false,
+    "enable_analysis": true
+}

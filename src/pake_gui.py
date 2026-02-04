@@ -13,23 +13,28 @@ import threading
 import time
 import httpx
 from dotenv import load_dotenv
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLabel, QSplitter, QProgressBar, QFrame, QPushButton,
-    QDockWidget, QScrollArea, QCheckBox, QButtonGroup
-)
-from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer
-from PySide6.QtGui import QFont, QTextCursor, QIcon, QAction
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                               QHBoxLayout, QLabel, QTextEdit, QSplitter, 
+                               QDockWidget, QProgressBar, QFrame, QToolBar, 
+                               QStatusBar, QPushButton, QCheckBox, QScrollArea, 
+                               QButtonGroup)
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QSize
+from PySide6.QtGui import QTextCursor, QFont, QColor, QAction, QIcon
 
 from economic_detector import ForexFactoryScraper
 from cost_logger import log_api_cost
+from config_manager import config
+from gui.settings_dialog import SettingsDialog
+from gui.telegram_dashboard import TelegramDashboard
+from telegram_manager import tg_manager
 
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_KEY", "")
 
 # AI Configuration (Saved in .env)
-MODEL_TRANSLATE = os.getenv("MODEL_TRANSLATE", "google/gemini-2.5-flash-lite")
-MODEL_ANALYSIS = os.getenv("MODEL_ANALYSIS", "google/gemini-3-flash-preview")
+# MODEL_TRANSLATE and MODEL_ANALYSIS are now fetched from config dynamically
+# MODEL_TRANSLATE = os.getenv("MODEL_TRANSLATE", "google/gemini-2.5-flash-lite")
+# MODEL_ANALYSIS = os.getenv("MODEL_ANALYSIS", "google/gemini-3-flash-preview")
 MODEL_SUMMARY = os.getenv("MODEL_SUMMARY", "google/gemini-3-pro-preview")
 
 TOKEN_LIMIT_TRANSLATE = int(os.getenv("TOKEN_LIMIT_TRANSLATE", 1000))
@@ -73,16 +78,26 @@ DECISION_RULES = """
 # STYLES
 # ============================================================================
 DARK_STYLE = """
-QMainWindow { background-color: #0f0f14; }
-QWidget { font-family: 'Segoe UI', Arial, sans-serif; color: #e0e0e0; }
+QMainWindow, QWidget { 
+    background-color: #0a0a0f; 
+    color: #e0e0e0; 
+}
 QSplitter::handle { background-color: #1a1a24; width: 2px; }
 QTextEdit { 
-    background-color: #14141c; 
+    background-color: #1a1a1f; 
+    color: #e0e0e0; 
     border: 1px solid #2a2a3a;
-    border-radius: 8px;
-    padding: 12px;
-    color: #e0e0e0;
     font-size: 13px;
+    line-height: 1.6;
+}
+QLineEdit {
+    background-color: #1a1a1f; 
+    color: #ffffff;
+    border: 1px solid #333;
+    padding: 4px;
+}
+QScrollBar:vertical {
+    border: none;
 }
 QProgressBar {
     border: none;
@@ -220,7 +235,7 @@ class TranslateWorker(QObject):
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                         json={
-                            "model": MODEL_TRANSLATE,
+                            "model": config.get("model_translate"),
                             "messages": [{"role": "user", "content": prompt}],
                             "max_tokens": TOKEN_LIMIT_TRANSLATE
                         }
@@ -234,7 +249,7 @@ class TranslateWorker(QObject):
                     t_tok = usage.get("total_tokens", 0)
                     cost = result.get("cost", 0)
                     print(f"💰 [Translate] Usage: P={p_tok}, C={c_tok}, Total={t_tok}, Cost=${cost:.6f}")
-                    log_api_cost("Translate", MODEL_TRANSLATE, usage, cost, self.batch_num)
+                    log_api_cost("Translate", config.get("model_translate"), usage, cost, self.batch_num)
 
                     translated_text = result["choices"][0]["message"]["content"]
                     
@@ -259,7 +274,7 @@ class TranslateWorker(QObject):
                                     "speaker": speaker,
                                     "text": text_part
                                 })
-                    
+
                     # If parsing failed, fall back to original segments with translated text
                     if len(translated_segments) == 0:
                         translated_segments.append({
@@ -360,7 +375,7 @@ class AnalysisWorker(QObject):
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                         json={
-                            "model": MODEL_ANALYSIS,
+                            "model": config.get("model_analysis"),
                             "messages": [{"role": "user", "content": prompt}],
                             "response_format": {"type": "json_object"},
                             "provider": {"order": ["google-vertex/global"]},
@@ -376,7 +391,7 @@ class AnalysisWorker(QObject):
                     t_tok = usage.get("total_tokens", 0)
                     cost = result.get("cost", 0)
                     print(f"💰 [Analysis] Usage: P={p_tok}, C={c_tok}, Total={t_tok}, Cost=${cost:.6f}")
-                    log_api_cost("Analysis", MODEL_ANALYSIS, usage, cost, self.batch_num)
+                    log_api_cost("Analysis", config.get("model_analysis"), usage, cost, self.batch_num)
 
                     # Debug: print raw response keys
                     # print(f"🔍 API Response keys: {list(result.keys())}")
@@ -477,6 +492,9 @@ class SessionSummaryWorker(QObject):
 
         try:
             with httpx.Client(timeout=60) as client:
+                # Use token limit from config or fallback
+                max_tokens = config.get("max_tokens_summary", TOKEN_LIMIT_SUMMARY)
+                
                 resp = client.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
@@ -484,7 +502,7 @@ class SessionSummaryWorker(QObject):
                         "model": MODEL_SUMMARY,
                         "messages": [{"role": "user", "content": prompt}],
                         "response_format": {"type": "json_object"},
-                        "max_tokens": TOKEN_LIMIT_SUMMARY
+                        "max_tokens": max_tokens
                     }
                 )
                 result = resp.json()
@@ -1066,12 +1084,16 @@ class PakeAnalyzerWindow(QMainWindow):
             "trend": {"hawkish": 0, "dovish": 0, "neutral": 0}
         }
         
+        # System State
+        self.is_running = False  # Start in PAUSED state
+        
         # New: Tracking numeric trends
         self.trend_tracker = {
             "inflation": [],      # เก็บค่า % เงินเฟ้อ เช่น [3.5, 3.3, 3.2]
             "unemployment": [],   # เก็บค่า % การว่างงาน
             "last_direction": None  # "up" หรือ "down"
         }
+        self.last_big_picture_time = 0  # Cooldown tracker
         self.last_context = ""
         
         self._build_ui()
@@ -1083,29 +1105,58 @@ class PakeAnalyzerWindow(QMainWindow):
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+
+        # --- TOOLBAR ---
+        toolbar = QToolBar("Main Toolbar")
+        toolbar.setStyleSheet("background-color: #0a0a0f; border-bottom: 1px solid #1a1a24; padding: 4px;")
+        self.addToolBar(Qt.TopToolBarArea, toolbar)
         
-        # --- HEADER ---
-        header = QFrame()
-        header.setFixedHeight(36)
-        header.setStyleSheet("background-color: #0a0a0f; border-bottom: 1px solid #1a1a24;")
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(16, 0, 16, 0)
+        # Title Label
+        title_label = QLabel("PAKE LIVE ANALYZER")
+        title_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #6366f1; letter-spacing: 2px; margin-left: 8px;")
+        toolbar.addWidget(title_label)
         
-        title = QLabel("PAKE LIVE ANALYZER")
-        title.setStyleSheet("font-size: 12px; font-weight: bold; color: #6366f1; letter-spacing: 2px;")
+        # --- START/STOP BUTTON ---
+        self.btn_start = QPushButton("▶ START")
+        self.btn_start.setCheckable(True)
+        self.btn_start.setStyleSheet("""
+            QPushButton { 
+                background-color: #22c55e; 
+                color: white; 
+                font-weight: bold; 
+                border-radius: 4px; 
+                padding: 6px 16px;
+                font-size: 12px;
+                margin-left: 20px;
+            }
+            QPushButton:checked { 
+                background-color: #ef4444; 
+                border: 2px solid #b91c1c;
+            }
+            QPushButton:hover { opacity: 0.9; }
+        """)
+        self.btn_start.clicked.connect(self.toggle_processing)
+        toolbar.addWidget(self.btn_start)
         
         # Overall Trend Indicator
         self.trend_label = QLabel("📊 TREND: -")
-        self.trend_label.setStyleSheet("font-size: 11px; color: #606070; padding: 4px 10px; background: #1a1a24; border-radius: 4px;")
+        self.trend_label.setStyleSheet("font-size: 11px; color: #606070; padding: 4px 10px; background: #1a1a24; border-radius: 4px; margin-left: 20px;")
+        toolbar.addWidget(self.trend_label)
         
+        toolbar.addSeparator()
+
+        # Toggle Thai Button
         self.toggle_btn = QPushButton("🇹🇭 Thai ON")
         self.toggle_btn.setCheckable(True)
         self.toggle_btn.setChecked(True)
         self.toggle_btn.clicked.connect(self._toggle_thai)
-        
-        self.status = QLabel("● WAITING")
-        self.status.setStyleSheet("font-size: 11px; color: #606070;")
-        
+        self.toggle_btn.setStyleSheet("""
+            QPushButton { background: #1a1a24; border: 1px solid #2a2a3a; color: #a0a0b0; border-radius: 4px; padding: 4px 10px; font-size: 11px; }
+            QPushButton:hover { background: #2a2a3a; color: #e0e0e0; }
+            QPushButton:checked { background: #6366f1; color: white; border-color: #6366f1; }
+        """)
+        toolbar.addWidget(self.toggle_btn)
+
         # Toggle News Button
         self.btn_news = QPushButton("📅 News")
         self.btn_news.setCheckable(True)
@@ -1115,17 +1166,29 @@ class PakeAnalyzerWindow(QMainWindow):
             QPushButton:checked { background: #6366f1; color: white; border-color: #6366f1; }
         """)
         self.btn_news.clicked.connect(self.toggle_news_panel)
+        toolbar.addWidget(self.btn_news)
         
-        header_layout.addWidget(title)
-        header_layout.addSpacing(20)
-        header_layout.addWidget(self.trend_label)
-        header_layout.addStretch()
-        header_layout.addWidget(self.btn_news) # Add News Button
-        header_layout.addSpacing(10)
-        header_layout.addWidget(self.toggle_btn)
-        header_layout.addSpacing(20)
-        header_layout.addWidget(self.status)
-        layout.addWidget(header)
+        toolbar.addSeparator()
+
+        # Settings Action
+        settings_action = QAction(QIcon(), "⚙️ Settings", self)
+        settings_action.setStatusTip("Open system settings")
+        settings_action.triggered.connect(self.open_settings)
+        toolbar.addAction(settings_action)
+
+        # Telegram Dashboard Action
+        tg_action = QAction(QIcon(), "📡 Telegram", self)
+        tg_action.setStatusTip("Open Telegram Newsroom")
+        tg_action.triggered.connect(self.open_telegram)
+        toolbar.addAction(tg_action)
+
+        # Spacer to push status to the right
+        toolbar.addSeparator()
+        toolbar.addWidget(QWidget()) # Invisible widget to push content
+        
+        self.status = QLabel("● WAITING")
+        self.status.setStyleSheet("font-size: 11px; color: #606070; margin-right: 8px;")
+        toolbar.addWidget(self.status)
 
         # --- NEWS DOCK ---
         self.news_dock = QDockWidget("Economic Calendar", self)
@@ -1217,6 +1280,24 @@ class PakeAnalyzerWindow(QMainWindow):
         self.splitter.setSizes([450, 450, 700])
         layout.addWidget(self.splitter)
         
+        self.setStatusBar(QStatusBar(self))
+        self._set_status("● PAUSED", "#606070")
+
+    def toggle_processing(self):
+        """Toggle Start/Stop state"""
+        if self.btn_start.isChecked():
+            # START STATE
+            self.is_running = True
+            self.btn_start.setText("⏹ STOP")
+            self._set_status("● LISTENING", "#22c55e")
+            self.transcript.append("<span style='color: #22c55e;'>--- SYSTEM STARTED ---</span>")
+        else:
+            # STOP STATE
+            self.is_running = False
+            self.btn_start.setText("▶ START")
+            self._set_status("● PAUSED", "#ef4444")
+            self.transcript.append("<span style='color: #ef4444;'>--- SYSTEM PAUSED ---</span>")
+        
     def _toggle_thai(self):
         self.show_thai = self.toggle_btn.isChecked()
         if self.show_thai:
@@ -1275,10 +1356,54 @@ class PakeAnalyzerWindow(QMainWindow):
         self.status.setText(text)
         self.status.setStyleSheet(f"font-size: 11px; color: {color}; font-weight: bold;")
         
+    def open_settings(self):
+        dlg = SettingsDialog(self)
+        dlg.exec()
+
+    def open_telegram(self):
+        dlg = TelegramDashboard(self)
+        dlg.exec()
+
+    def _handle_telegram_auto_post(self, data, raw_text):
+        """Check rules and send Telegram message"""
+        cfg = tg_manager.config
+        sentiment = data.get("sentiment", "NEUTRAL")
+        
+        should_post = False
+        
+        if cfg.get("auto_post_all", False):
+            should_post = True
+        elif cfg.get("auto_post_hawk_dove", False):
+            if sentiment in ["HAWKISH", "DOVISH"]:
+                should_post = True
+                
+        if should_post:
+            template = cfg["templates"].get("analysis_update", "")
+            if not template:
+                return
+                
+            # Formatting
+            impact_text = f"Gold: {data.get('gold')} | Forex: {data.get('forex')}"
+            
+            msg = template.replace("{sentiment}", sentiment)
+            msg = msg.replace("{impact}", impact_text)
+            msg = msg.replace("{summary}", data.get("summary"))
+            msg = msg.replace("{prediction}", data.get("prediction"))
+            msg = msg.replace("{raw_text}", raw_text)
+            
+            print(f"📡 Auto-Posting to Telegram: {sentiment}")
+            tg_manager.send_to_all(msg)
+
     def _on_message(self, payload: dict):
+        # Always allow connection status updates, but filter content if paused
         msg_type = payload.get("type")
         data = payload.get("data", {})
         
+        # Allow heartbeat/status, block DATA if paused
+        if not self.is_running:
+            # Maybe show status only? For now strict block of heavy lifting
+            return
+
         if msg_type == "segment":
             self._add_segment(data)
         elif msg_type == "batch":
@@ -1330,9 +1455,6 @@ class PakeAnalyzerWindow(QMainWindow):
     def _process_batch(self, batch: dict):
         self.progress.show()
         
-        # Cleanup finished threads first
-        # self._cleanup_finished_threads() # DISABLED: Causing RuntimeError
-        
         current_batch = batch.get("current_batch", {})
         text = current_batch.get("text", "")
         segments = current_batch.get("segments", [])
@@ -1343,7 +1465,7 @@ class PakeAnalyzerWindow(QMainWindow):
         self.last_context = previous_context  # เก็บไว้ใช้ต่อ
         
         # --- Start Translation Thread ---
-        if self.show_thai:
+        if config.get("enable_translation"):
             print(f"🔄 Starting Translation Thread for Batch #{batch_num}")
             translate_thread = QThread()
             translate_worker = TranslateWorker(segments, batch_num)
@@ -1532,8 +1654,8 @@ BATCH #{batch_num} • {now}
         cursor.insertHtml(html)
 
         # 🔥 TRIGGER BIG PICTURE UPDATE
-        # อัปเดตทุกๆ 5 Batches หรือถ้าเพิ่งเริ่ม (Batch 1)
-        if len(self.memory["summaries"]) > 0 and (len(self.memory["summaries"]) % 5 == 0 or len(self.memory["summaries"]) == 1):
+        # อัปเดตทุกๆ 10 Batches (ลดความถี่ลงจาก 5) หรือถ้าเพิ่งเริ่ม (Batch 1)
+        if len(self.memory["summaries"]) > 0 and (len(self.memory["summaries"]) % 10 == 0 or len(self.memory["summaries"]) == 1):
             print("🌍 Triggering Global Summary Update...")
             
             # สร้าง Thread สำหรับ Summary แยกต่างหาก
@@ -1593,8 +1715,7 @@ BATCH #{batch_num} • {now}
         </ul>
         
         <div style='background:#2a2a3a; padding:8px; border-radius:4px;'>
-            <div style='font-size:10px; color:#a0a0ff; font-weight:bold; margin-bottom:4px;'>💡 STRATEGIC ACTION</div>
-            <div style='font-size:12px; color:#e0e0e0; font-style:italic;'>"{market}"</div>
+                <div style='font-size:12px; color:#e0e0e0; font-style:italic;'>"{market}"</div>
         </div>
         """
         
@@ -1602,6 +1723,50 @@ BATCH #{batch_num} • {now}
         
         # Scroll to top just in case
         self.big_picture_view.verticalScrollBar().setValue(0)
+        
+        # 🚀 Auto-Post to Telegram with Cooldown
+        self._handle_telegram_big_picture_post(data)
+    
+    def _handle_telegram_big_picture_post(self, data: dict):
+        """Send Big Picture update to Telegram if auto-post is enabled."""
+        import time
+        # 1. Check specific toggle for Big Picture
+        if not tg_manager.config.get("auto_post_summary", False):
+             print("🚫 [Telegram] Big Picture Auto-Post skipped (Disabled in Settings)")
+             return
+
+        # 2. Cooldown Check (5 Minutes)
+        current_time = time.time()
+        if current_time - self.last_big_picture_time < 300: # 300 seconds = 5 mins
+            print(f"⏳ [Telegram] Big Picture skipped (Cooldown active: {int(300 - (current_time - self.last_big_picture_time))}s remaining)")
+            return
+
+        try:
+            # Fallback default template if config is missing or empty
+            default_template = "🌍 <b>BIG PICTURE UPDATE</b>\n\n<b>{title}</b>\n\n{bullets}\n\n🔮 <b>Strategy:</b> {strategy}"
+            template = tg_manager.config.get("templates", {}).get("session_summary", "")
+            
+            if not template:
+                print("⚠️ [Telegram] Template 'session_summary' missing, using default fallback.")
+                template = default_template
+            
+            # Format Bullets
+            bullets = "\n".join([f"• {b}" for b in data.get("key_points", [])])
+            
+            msg = template.format(
+                title=data.get("main_topic", "Market Update"),
+                bullets=bullets,
+                strategy=data.get("market_implication", "Wait and see.")
+            )
+            
+            tg_manager.send_to_all(msg)
+            tg_manager.log_activity("BIG_PICTURE", f"Sent summary: {data.get('main_topic')}")
+            print("📤 [Telegram] Sent Big Picture Update")
+            self.last_big_picture_time = current_time
+            
+        except Exception as e:
+            print(f"❌ [Telegram] Big Picture Send Error: {e}")
+            tg_manager.log_activity("ERROR", f"Big Picture Error: {e}")
     
     def _update_trend_indicator(self):
         """Update the overall trend indicator in header"""

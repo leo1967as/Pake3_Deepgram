@@ -20,3 +20,9 @@ tempCodeRunnerFile.py
 transcripts/
 *.wav
 *.log
+
+# Sensitive Data
+data/telegram_config.json
+data/telegram_history.json
+data/cost_log*.csv
+openrouterlog.md
