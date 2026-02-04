@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QButtonGroup)
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QSize
 from PySide6.QtGui import QTextCursor, QFont, QColor, QAction, QIcon
+from PySide6.QtNetwork import QTcpServer, QHostAddress
 
 from economic_detector import ForexFactoryScraper
 from cost_logger import log_api_cost
@@ -42,36 +43,33 @@ TOKEN_LIMIT_ANALYSIS = int(os.getenv("TOKEN_LIMIT_ANALYSIS", 2000))
 TOKEN_LIMIT_SUMMARY = int(os.getenv("TOKEN_LIMIT_SUMMARY", 4096))
 
 DECISION_RULES = """
-### 🚨 กฎการตัดสินใจ (ต้องปฏิบัติตาม 100% - ห้ามใช้ "ทรงตัว" เมื่อมีคำเหล่านี้)
+### 🚨 กฎการตัดสินใจ (ต้องปฏิบัติตาม 100%)
 
-#### 🦅 HAWKISH (ต้องตอบ "HAWKISH" หากมีคำเหล่านี้ในคำพูดประธานเฟด):
-- เงินเฟ้อเพิ่มขึ้น: "inflation rising", "inflation accelerating", "price pressures increasing"
-- ความกังวลเงินเฟ้อ: "inflation concerns", "inflation risks", "unsustainable inflation"
-- นโยบายเข้มงวด: "tighten policy", "restrictive stance", "higher for longer"
-- ขึ้นดอกเบี้ย: "rate hike", "raise rates", "not cutting soon"
-- หนี้ไม่ยั่งยืน: "unsustainable debt", "unsustainable deficit", "fiscal trajectory concerns"
-- ตลาดแรงงานร้อนแรง: "tight labor market", "strong job growth", "wage pressures"
+#### 🟢 กรณี: นโยบายการเงิน (Fed/Central Banks)
+- **🦅 HAWKISH**: เงินเฟ้อเพิ่ม, นโยบายเข้มงวด, ขึ้นดอกเบี้ย, ตลาดแรงงานร้อนแรง, เศรษฐกิจ Overheat
+- **🕊️ DOVISH**: เงินเฟ้อลด, ผ่อนคลาย, ลดดอกเบี้ย, ตลาดแรงงานอ่อนตัว, เศรษฐกิจถดถอย
+- **⚖️ NEUTRAL**: รอข้อมูล, ตอบคำถามทั่วไป, ไม่บุยไม่แบ้
 
-#### 🕊️ DOVISH (ต้องตอบ "DOVISH" หากมีคำเหล่านี้ในคำพูดประธานเฟด):
-- เงินเฟ้อลดลง: "inflation falling", "disinflation", "inflation coming down", "progress on inflation"
-- แนวโน้มเงินเฟ้อดีขึ้น: "inflation 3.5% → 3.2%", "core PCE below 3%", "inflation near 2%"
-- ตลาดแรงงานอ่อนตัว: "labor market softening", "cooling labor market", "unemployment rising"
-- ผ่อนคลายนโยบาย: "ease policy", "accommodative stance", "rate cuts possible"
-- ภาษีส่งผ่านแล้ว: "tariff pass-through complete", "tariff effects fading", "one-time price increase"
-- ผลิตภาพเพิ่ม: "productivity growth", "AI boosts productivity", "wage growth from productivity"
+#### 🌍 กรณี: ข่าวทั่วไป / ภูมิรัฐศาสตร์ (Geopolitics / General News)
+- **🔥 RISK-OFF (Negative)**: สงคราม, ความขัดแย้ง, Supply Shock (น้ำมันแพง), โรคระบาด, ภัยธรรมชาติ, การกีดกันทางการค้า
+    -> *ผลกระทบ*: ทองขึ้น (Safe Haven), หุ้นลง, ดอลลาร์แข็ง (Safe Haven)
+- **🚀 RISK-ON (Positive)**: เจรจาสันติภาพ, ข้อตกลงการค้า, นวัตกรรมใหม่, ตัวเลข GDP ดีเกินคาด
+    -> *ผลกระทบ*: ทองลง/ทรงตัว, หุ้นขึ้น, สกุลเงิน Commodity แข็งค่า
 
-#### ⚖️ NEUTRAL (ใช้ได้เฉพาะกรณี):
-- นักข่าวถามคำถาม (ยังไม่มีคำตอบจากประธานเฟด)
-- เรื่องทั่วไปที่ไม่เกี่ยวกับนโยบาย: "Fed independence", "appointment process", "congressional testimony"
+### 📊 กฎการวิเคราะห์ตลาด (Market Correlation Rules):
+*** ต้องระบุบริบทก่อน (Fed หรือ War/General) ***
 
-### 📊 กฎการวิเคราะห์ตลาด (ต้องเชื่อมโยงกับแนวโน้ม):
-- HAWKISH → Gold: ลง | Forex: แข็ง | Stock: ลง (โดยเฉพาะ growth stocks)
-- DOVISH → Gold: ขึ้น | Forex: อ่อน | Stock: ขึ้น (โดยเฉพาะ rate-sensitive sectors)
-- NEUTRAL → ทรงตัว (แต่ต้องอธิบายว่า "รอคำตอบจากประธานเฟด")
+1. **Fed Context**:
+   - Hawk -> Gold ลง, USD แข็ง, Stock ลง
+   - Dove -> Gold ขึ้น, USD อ่อน, Stock ขึ้น
 
-### ⚠️ ห้ามใช้คำว่า "รอดูข้อมูลเพิ่มเติม" — ต้องใช้เหตุผลเชิงปริมาณ:
-❌ ห้าม: "รอดูข้อมูลเศรษฐกิจเพิ่มเติม"
-✅ ต้อง: "เงินเฟ้อลดจาก 3.5% → 3.2% → dovish pressure on rates"
+2. **Geopolitics/Crisis Context**:
+   - Crisis/War -> Gold ขึ้น (Safe Haven), Oil ขึ้น (Supply Risk), Stock ลง (Uncertainty)
+   - Resolution/Peace -> Gold ลง, Oil ลง, Stock ขึ้น
+
+### ⚠️ ข้อควรระวัง:
+- อย่าฝืนเป็น Hawk/Dove ถ้าเป็นข่าวสงครามหรือการค้า ให้ใช้บริบท Risk-On/Risk-Off แทน
+- ถ้าเนื้อหาเป็นเรื่องทรัมป์/รัฐบาล ให้มองเรื่อง Trade Policy & Fiscal Policy
 """
 
 # ============================================================================
@@ -189,6 +187,10 @@ class SocketServerThread(QThread):
             
     def stop(self):
         self.running = False
+
+class GUISignals(QObject):
+    new_message = Signal(dict)
+
 
 # ============================================================================
 # TRANSLATION WORKER (Separate API)
@@ -358,12 +360,12 @@ class AnalysisWorker(QObject):
     "speaker_identified": "ประธานเฟด/นักข่าว",
     "summary": "สรุป 1 ประโยค + ระบุบทบาทผู้พูด",
     "prediction": "คาดการณ์ 1 ประโยค",
-    "sentiment": "HAWKISH|DOVISH|NEUTRAL (ต้องเลือกตามกฎข้างต้น)",
+    "sentiment": "HAWKISH|DOVISH|NEUTRAL|RISK-OFF|RISK-ON (เลือกตามบริบท)",
     "signal_strength": "HIGH|MEDIUM|LOW",
-    "consistency_note": "อธิบายว่าทำไมเลือก sentiment นี้ (อ้างอิงคำสำคัญ)",
-    "gold": "ขึ้น/ลง/ทรงตัว: เหตุผลเชิงปริมาณ",
-    "forex": "แข็ง/อ่อน/ทรงตัว: เหตุผลเชิงปริมาณ",
-    "stock": "ขึ้น/ลง/ทรงตัว: หมวด + เหตุผลเชิงปริมาณ"
+    "consistency_note": "ระบุบริบท (Fed/Geopolitics) และเหตุผล",
+    "gold": "ทิศทาง + เหตุผล",
+    "forex": "ทิศทาง + เหตุผล",
+    "stock": "ทิศทาง + เหตุผล"
 }}"""
 
         max_retries = 2
@@ -1095,9 +1097,14 @@ class PakeAnalyzerWindow(QMainWindow):
         }
         self.last_big_picture_time = 0  # Cooldown tracker
         self.last_context = ""
+
+        # GUI Signals for Socket Communication
+        self.signals = GUISignals()
+        self.signals.new_message.connect(self._on_message)
         
         self._build_ui()
-        self._start_server()
+        # Start TCP Server for Backend Communication
+        self.start_tcp_server()
         
     def _build_ui(self):
         central = QWidget()
@@ -1286,17 +1293,23 @@ class PakeAnalyzerWindow(QMainWindow):
     def toggle_processing(self):
         """Toggle Start/Stop state"""
         if self.btn_start.isChecked():
-            # START STATE
+            # === START ===
             self.is_running = True
             self.btn_start.setText("⏹ STOP")
             self._set_status("● LISTENING", "#22c55e")
             self.transcript.append("<span style='color: #22c55e;'>--- SYSTEM STARTED ---</span>")
+            
+            # Send START Command
+            url = config.get("target_media_url", "")
+            if not url:
+                 print("⚠️ No target URL in config, sending empty URL")
+            
+            model_id = config.get("model_analysis", "google/gemini-3-flash-preview")
+            self.send_command("START", {"url": url, "model": model_id})
+
         else:
-            # STOP STATE
-            self.is_running = False
-            self.btn_start.setText("▶ START")
-            self._set_status("● PAUSED", "#ef4444")
-            self.transcript.append("<span style='color: #ef4444;'>--- SYSTEM PAUSED ---</span>")
+            # === STOP ===
+            self.stop_process()
         
     def _toggle_thai(self):
         self.show_thai = self.toggle_btn.isChecked()
@@ -1338,14 +1351,135 @@ class PakeAnalyzerWindow(QMainWindow):
                 self.trend_tracker["last_direction"] = "down"  # แนวโน้มลดลง = DOVISH
             elif last > prev:
                 self.trend_tracker["last_direction"] = "up"    # แนวโน้มเพิ่มขึ้น = HAWKISH
+    # --- TCP Server Logic (Bi-directional) ---
+    def start_tcp_server(self):
+        """Start TCP Server for Backend Communication"""
+        self.tcp_server = QTcpServer(self)
+        if not self.tcp_server.listen(QHostAddress.LocalHost, 8765):
+            print(f"❌ Could not start TCP server: {self.tcp_server.errorString()}")
+            return
+
+        self.tcp_server.newConnection.connect(self._handle_new_connection)
+        print("✅ TCP Server listening on port 8765")
+
+    def _handle_new_connection(self):
+        """Handle incoming backend connection"""
+        self.client_socket = self.tcp_server.nextPendingConnection()
+        self.client_socket.readyRead.connect(self._read_socket)
+        self.client_socket.disconnected.connect(self._handle_disconnected)
         
-    def _start_server(self):
-        self.server = SocketServerThread(8765)
-        self.server.message_received.connect(self._on_message)
-        self.server.client_connected.connect(lambda: self._set_status("● LIVE", "#22c55e"))
-        self.server.client_disconnected.connect(lambda: self._set_status("● OFFLINE", "#ef4444"))
-        self.server.start()
+        self.is_connected = True
+        self._set_status("🟢 Backend Connected", "#22c55e")
+        print("🔗 Backend Connected!")
         
+        # Enable Start Button when backend connects
+        # self.url_input check removed as it is no longer used
+        self.btn_start.setEnabled(True)
+
+    def _handle_disconnected(self):
+        self.is_connected = False
+        self.client_socket = None
+        self._set_status("🔴 Backend Disconnected", "#ef4444")
+        self.btn_start.setEnabled(False)
+        print("❌ Backend Disconnected")
+
+    def _read_socket(self):
+        """Process incoming data from backend"""
+        if not self.client_socket: return
+        
+        while self.client_socket.bytesAvailable() > 0:
+            line_bytes = self.client_socket.readLine()
+            try:
+                line = str(line_bytes, 'utf-8').strip()
+                if not line: continue
+                payload = json.loads(line)
+                self.signals.new_message.emit(payload)
+            except Exception as e:
+                print(f"Socket Parse Error: {e}")
+
+    def send_command(self, cmd_type: str, payload: dict = {}):
+        """Send JSON command to backend"""
+        if not self.client_socket:
+            print("⚠️ Cannot send command: No backend connection")
+            return
+            
+        try:
+            msg = {"type": cmd_type, **payload}
+            json_str = json.dumps(msg) + "\n"
+            self.client_socket.write(json_str.encode('utf-8'))
+            self.client_socket.flush()
+            print(f"📤 Sent Command: {cmd_type}")
+        except Exception as e:
+            print(f"❌ Send Error: {e}")
+
+    def stop_process(self):
+        """Handle Stop Logic"""
+        if not self.is_running: return
+        
+        # 1. Send STOP Command
+        self.send_command("STOP")
+        
+        # 2. Update UI
+        self.is_running = False
+        self.btn_start.setText("▶ START")
+        self.btn_start.setChecked(False) 
+        self._set_status("🟡 PAUSED", "#eab308")
+        self.transcript.append("<span style='color: #ef4444;'>--- SYSTEM PAUSED ---</span>")
+        
+        # 3. Trigger Session Wrap-up (Phase 4 Logic)
+        if hasattr(self, 'session_summary_timer'):
+            self.session_summary_timer.stop()
+        
+        # Trigger Final Report (The Judge)
+        self.finalize_session()
+
+    def finalize_session(self):
+        if not self.memory["summaries"]:
+            return
+            
+        print("⚖️ Generating Final Session Report...")
+        self.status.setText("⚖️ JUDGING SESSION...")
+        
+        # Create worker thread
+        final_thread = QThread()
+        final_worker = FinalReportWorker(self.memory["summaries"], self.memory["trend"])
+        final_worker.moveToThread(final_thread)
+        
+        final_worker.finished.connect(self._show_final_report)
+        final_worker.finished.connect(final_thread.quit)
+        final_worker.finished.connect(final_worker.deleteLater)
+        final_thread.finished.connect(final_thread.deleteLater)
+        
+        self.active_threads.append(final_thread) 
+        final_thread.start()
+
+    def _show_final_report(self, report):
+        if not report: return
+        
+        # Format HTML for final report
+        html = f"""
+        <div style="background-color:#1a1a24; border:1px solid #6366f1; border-radius:8px; padding:15px; margin-top:20px; margin-bottom:20px;">
+            <h2 style="color:#6366f1; margin-top:0;">⚖️ FINAL VERDICT</h2>
+            <p><b>Topic:</b> {report.get('topic')}</p>
+            <p><b>Sentiment:</b> <span style="font-weight:bold; color:{'#ef4444' if 'HAWK' in report.get('sentiment','').upper() else '#22c55e' if 'DOVE' in report.get('sentiment','').upper() else '#fbbf24'}">{report.get('sentiment')}</span></p>
+            <div style="background-color:#2a2a3a; padding:10px; border-radius:4px; margin:10px 0;">
+                <b>🔑 Key Takeaways:</b>
+                <ul>
+                    {''.join([f'<li>{p}</li>' for p in report.get('key_points', [])])}
+                </ul>
+            </div>
+            <p><b>🔮 Prediction:</b> {report.get('prediction')}</p>
+            <p><b>📊 Impact:</b> Gold: {report.get('gold')} | USD: {report.get('forex')}</p>
+        </div>
+        """
+        
+        cursor = self.transcript.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertHtml(html)
+        self.transcript.ensureCursorVisible()
+        self._set_status("🔴 STOPPED", "#ef4444")
+
+
     def toggle_news_panel(self):
         if self.btn_news.isChecked():
             self.news_dock.show()
@@ -1395,19 +1529,17 @@ class PakeAnalyzerWindow(QMainWindow):
             tg_manager.send_to_all(msg)
 
     def _on_message(self, payload: dict):
-        # Always allow connection status updates, but filter content if paused
+        """Handle incoming messages from backend"""
         msg_type = payload.get("type")
         data = payload.get("data", {})
         
-        # Allow heartbeat/status, block DATA if paused
-        if not self.is_running:
-            # Maybe show status only? For now strict block of heavy lifting
-            return
-
+        # Allow status updates even if 'paused' (backend might be shutting down)
         if msg_type == "segment":
-            self._add_segment(data)
+            if self.is_running:
+                self._add_segment(data)
         elif msg_type == "batch":
-            self._process_batch(data)
+            if self.is_running:
+                self._process_batch(data)
             
     def _add_segment(self, seg: dict):
         speaker = seg.get("speaker", "?")
@@ -1654,9 +1786,12 @@ BATCH #{batch_num} • {now}
         cursor.insertHtml(html)
 
         # 🔥 TRIGGER BIG PICTURE UPDATE
-        # อัปเดตทุกๆ 10 Batches (ลดความถี่ลงจาก 5) หรือถ้าเพิ่งเริ่ม (Batch 1)
-        if len(self.memory["summaries"]) > 0 and (len(self.memory["summaries"]) % 10 == 0 or len(self.memory["summaries"]) == 1):
+        # อัปเดตทุกๆ 2 Batches (ไวขึ้น) เพื่อจับความเปลี่ยนแปลงได้ทันที
+        # ส่วนการส่ง Telegram จะถูกคุมด้วย Logic ใน _update_big_picture
+        if batch_num > 0 and (batch_num % 2 == 0 or batch_num == 1):
+             # Remove blocking cooldown here to allow analysis to run
             print("🌍 Triggering Global Summary Update...")
+            self.last_big_picture_time = time.time()
             
             # สร้าง Thread สำหรับ Summary แยกต่างหาก
             summary_thread = QThread()
@@ -1683,6 +1818,77 @@ BATCH #{batch_num} • {now}
         
         topic = data.get("main_topic", "-")
         points = data.get("key_points", [])
+        bullets = "".join([f"\n• {p}" for p in points])
+        strategy = data.get("market_implication", "-")
+        
+        # 🧐 Similarity Check Logic
+        import difflib
+        current_points_str = " ".join(points)
+        similarity = 0.0
+        
+        if hasattr(self, 'last_big_picture_points') and self.last_big_picture_points:
+            matcher = difflib.SequenceMatcher(None, self.last_big_picture_points, current_points_str)
+            similarity = matcher.ratio()
+            print(f"🧐 Big Picture Similarity: {similarity*100:.1f}%")
+            
+        # Store for next time
+        self.last_big_picture_points = current_points_str
+        
+        
+        # 🧠 Smart Notification Logic
+        # 1. Urgent: If content changed significantly (Similarity < 80%)
+        # 2. Routine: If > 3 minutes since last post
+        
+        should_post = False
+        reason = ""
+        
+        now = __import__("time").time() # optimize import
+        if not hasattr(self, 'last_telegram_post_time'):
+            self.last_telegram_post_time = 0
+            
+        if similarity < 0.8:
+            should_post = True
+            reason = "Urgent Update (High Change)"
+        elif now - self.last_telegram_post_time > 180:
+            should_post = True
+            reason = "Routine Update (3 Min Timer)"
+            
+        # 1. Update GUI (Always update GUI)
+        html = f"""
+        <div style="background-color:#2a2a3a; border-left:4px solid #f59e0b; padding:10px; margin:10px 0;">
+            <div style="font-size:11px; color:#f59e0b; font-weight:bold; margin-bottom:4px;">
+                🌍 BIG PICTURE UPDATE {f'(Sim: {similarity*100:.0f}%)' if similarity > 0 else ''}
+            </div>
+            <div style="font-size:13px; color:#e0e0e0;"><b>Topic:</b> {topic}</div>
+            <div style="font-size:12px; color:#c0c0c0; margin-top:4px;">
+                {'<br/>'.join([f'• {p}' for p in points])}
+            </div>
+             <div style="font-size:12px; color:#f59e0b; margin_top:4px;">
+                <b>Strategy:</b> {strategy}
+            </div>
+        </div>
+        """
+        cursor = self.transcript.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertHtml(html)
+        self.transcript.ensureCursorVisible()
+        
+        # 2. Update Telegram
+        if should_post:
+            cfg = tg_manager.config
+            if cfg.get("auto_post_summary", True):
+                template = cfg["templates"].get("session_summary", "")
+                if template:
+                    msg = template.replace("{title}", topic)
+                    msg = msg.replace("{bullets}", bullets)
+                    msg = msg.replace("{strategy}", strategy)
+                    
+                    print(f"📡 Auto-Posting Big Picture to Telegram ({reason})...")
+                    tg_manager.send_to_all(msg)
+                    self.last_telegram_post_time = now
+        else:
+            print(f"💤 Skipping Telegram Post (Sim: {similarity*100:.0f}% | Last: {int(now - self.last_telegram_post_time)}s ago)")
+        
         sentiment = data.get("overall_sentiment", "NEUTRAL")
         market = data.get("market_implication", "-")
         confidence = data.get("confidence_score", "-")
